@@ -24,13 +24,27 @@
 #define UVC_HEIGHT 120U
 #define UVC_CAM_FPS_FS 9U
 #define UVC_BITS_PER_PIXEL 16U
-/* Format 1 is YUY2 so generic hosts, including the Windows Camera app, get a
- * picture they can render; Y16 is added as format 2 by usb_video_format_install
- * for radiometric clients. Both are 16 bits per pixel at 160x120, so the two
- * format and frame descriptors are byte-identical apart from the GUID. */
+/* Format 1 is Y16 because the companion application reads absolute
+ * temperatures from every frame, and Windows only surfaces the first payload
+ * format of a streaming interface. YUY2 is advertised as format 2 by
+ * usb_video_format_install for hosts that cannot decode Y16; swap
+ * UVC_UNCOMPRESSED_GUID and UVC_SECOND_FORMAT_FOURCC to prefer that instead.
+ * Both are 16 bits per pixel at 160x120, so the two format and frame
+ * descriptors are byte-identical apart from the GUID. */
 #define UVC_GUID_Y16_FOURCC 0x20363159U
 #define UVC_GUID_YUY2_FOURCC 0x32595559U
-#define UVC_UNCOMPRESSED_GUID UVC_GUID_YUY2_FOURCC
+#define UVC_UNCOMPRESSED_GUID UVC_GUID_Y16_FOURCC
+#define UVC_SECOND_FORMAT_FOURCC UVC_GUID_YUY2_FOURCC
+
+/* Advertising both formats does not give hosts a choice on Windows: measured
+ * 2026-08-18, when Y16 and YUY2 are both present the Windows frame server
+ * exposes only YUY2, regardless of which one is format 1. So a device that
+ * offers both is a YUY2 device as far as Windows is concerned, and the
+ * radiometric counts the companion application needs become unreachable.
+ * Offer one format at a time: leave this at 0 for the radiometric build, and
+ * set it to 1 with UVC_UNCOMPRESSED_GUID set to YUY2 for a build that targets
+ * the stock Windows Camera app. */
+#define UVC_ADVERTISE_SECOND_FORMAT 0
 #define UVC_MAX_FRAME_SIZE (UVC_WIDTH * UVC_HEIGHT * 2U)
 #define UVC_PACKET_SIZE 512U
 #define UVC_ISO_FS_MPS 512U

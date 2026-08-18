@@ -61,6 +61,14 @@ last-reviewed: 2026-08-18
 - [ ] **Never write the SYS FFC shutter-mode object (CID 0x023C).** Block writes to it are
   acknowledged but only partly applied, which silently disables automatic FFC. Read it and
   fall back to RUN FFC instead. See [[Handoff - USB Lepton and RS422]].
+- [ ] **The chunked frame command starves publication.** The snapshot hold blocks
+  the parser from publishing, so a client issuing back-to-back `frame` commands
+  keeps receiving the same generation; sixteen consecutive reads all returned
+  generation 11568. The fix is a third assembly buffer (about 38 KB, affordable
+  after halving the VoSPI chunk). Needed before RS422 snapshots.
+- [ ] **Windows exposes only one UVC payload format.** Offering Y16 and YUY2
+  together yields a YUY2-only device. Ship one format per build; see
+  `UVC_ADVERTISE_SECOND_FORMAT`.
 - [ ] UVC reads the published frame without pinning it, which is safe only while a payload
   completes within one camera frame period. Revisit if the frame rate, frame size, or USB
   speed changes.

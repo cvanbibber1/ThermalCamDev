@@ -548,9 +548,10 @@ extern USBD_ClassTypeDef    USBD_VIDEO;
 
 uint8_t USBD_VIDEO_RegisterInterface(USBD_HandleTypeDef *pdev, USBD_VIDEO_ItfTypeDef *fops);
 
-/* Payload format the host selected: 1 = YUY2 preview, 2 = Y16 radiometric. */
-#define UVC_FORMAT_INDEX_YUY2 0x01U
-#define UVC_FORMAT_INDEX_Y16  0x02U
+/* Payload format the host selected. Format 1 is whatever UVC_UNCOMPRESSED_GUID
+ * names (Y16 by default) and format 2 is UVC_SECOND_FORMAT_FOURCC. */
+#define UVC_FORMAT_INDEX_PRIMARY 0x01U
+#define UVC_FORMAT_INDEX_SECOND  0x02U
 uint8_t USBD_VIDEO_GetCommittedFormat(void);
 
 /* Rewrites the built composite configuration descriptor to advertise Y16

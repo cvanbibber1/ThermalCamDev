@@ -146,6 +146,43 @@ makes the RS422 snapshot path viable, where a full frame takes about 500 ms.
   the 180-second mark (elapsed reset from 20.4 s to 51.0 s) with
   `ffc_forced_runs` staying at zero.
 
+## Host application and format choice 2026-08-18
+
+### Windows exposes one payload format, not a choice
+
+Y16 and YUY2 were both advertised as payload formats on the streaming
+interface, with a spec-correct descriptor verified byte by byte over SWD
+(`bNumFormats` 2, `wTotalLength` 141, both GUIDs, chain parses exactly). The
+Windows frame server still exposed only YUY2, and it did so regardless of
+which format was index 1. So a device offering both is a YUY2 device as far as
+Windows is concerned, and the radiometric counts become unreachable.
+
+`UVC_ADVERTISE_SECOND_FORMAT` therefore defaults to 0 and the shipped build
+offers Y16 alone, which restores 8.88 frames/s of radiometric video. Set it to
+1 with `UVC_UNCOMPRESSED_GUID` set to YUY2 for a build that targets the stock
+Windows Camera app; that build is preserved on `uvc/yuy2-windows-camera` and
+delivers 12.87 frames/s of auto-gain white-hot video through the standard
+Windows path.
+
+Two descriptor defects were found and fixed while building this, both from
+locating descriptors by scanning: the walk kept matching `CS_INTERFACE` subtype
+1 past the video block and wrote into a CDC functional descriptor, and the
+class-specific VS input header carries one `bmaControls` byte per format so it
+has to grow with the second format. Without the second fix the video function
+did not enumerate at all.
+
+### Application
+
+`tools/thermalcam_app.py` reads Y16 over the video interface and drives control
+over CDC concurrently. `tools/thermal_imaging.py` holds the palettes, contrast
+mapping, destriping, and temperature conversion shared with
+`tools/render_frame.py`. Verified offscreen across every palette, contrast
+mode, and unit, including snapshot (PNG, raw, CSV) and recording (MP4 plus
+optional raw Y16), and the control link degrades cleanly when CDC is absent.
+
+Branches parked for the routes not taken: `radiometric/cdc-frames`,
+`radiometric/format-switch`, `radiometric/second-pin`, `uvc/yuy2-windows-camera`.
+
 ## Previous flashed firmware state
 
 The VoSPI imaging blocker is solved and real frames are available:

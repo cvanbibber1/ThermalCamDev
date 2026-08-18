@@ -48,6 +48,11 @@ static uint8_t *video_get_config_descriptor(uint16_t *length) {
 
 void usb_video_format_install(USBD_HandleTypeDef *pdev) {
   (void)pdev;
+#if UVC_ADVERTISE_SECOND_FORMAT == 0
+  /* Single-format build: the composite builder's descriptor is already
+   * correct, so leave it and its accessor alone. */
+  return;
+#else
   uint16_t length = 0U;
   uint8_t *source = USBD_CMPSIT.GetFSConfigDescriptor(&length);
   if ((source == NULL) || (length == 0U) ||
@@ -113,13 +118,13 @@ void usb_video_format_install(USBD_HandleTypeDef *pdev) {
   video_config_length = (uint16_t)out;
 
   uint8_t *copy = &video_config_descriptor[copy_at];
-  copy[FORMAT_INDEX_OFFSET] = UVC_FORMAT_INDEX_Y16;
+  copy[FORMAT_INDEX_OFFSET] = UVC_FORMAT_INDEX_SECOND;
   /* Only the first four GUID bytes differ; the rest is the standard
    * {xxxxxxxx-0000-0010-8000-00AA00389B71} uncompressed suffix. */
-  copy[FORMAT_GUID_OFFSET + 0U] = (uint8_t)(UVC_GUID_Y16_FOURCC);
-  copy[FORMAT_GUID_OFFSET + 1U] = (uint8_t)(UVC_GUID_Y16_FOURCC >> 8);
-  copy[FORMAT_GUID_OFFSET + 2U] = (uint8_t)(UVC_GUID_Y16_FOURCC >> 16);
-  copy[FORMAT_GUID_OFFSET + 3U] = (uint8_t)(UVC_GUID_Y16_FOURCC >> 24);
+  copy[FORMAT_GUID_OFFSET + 0U] = (uint8_t)(UVC_SECOND_FORMAT_FOURCC);
+  copy[FORMAT_GUID_OFFSET + 1U] = (uint8_t)(UVC_SECOND_FORMAT_FOURCC >> 8);
+  copy[FORMAT_GUID_OFFSET + 2U] = (uint8_t)(UVC_SECOND_FORMAT_FOURCC >> 16);
+  copy[FORMAT_GUID_OFFSET + 3U] = (uint8_t)(UVC_SECOND_FORMAT_FOURCC >> 24);
 
   uint8_t *vs_header = &video_config_descriptor[header];
   vs_header[0] = (uint8_t)(vs_header[0] + 1U);
@@ -137,4 +142,5 @@ void usb_video_format_install(USBD_HandleTypeDef *pdev) {
 
   USBD_CMPSIT.GetFSConfigDescriptor = video_get_config_descriptor;
   USBD_CMPSIT.GetOtherSpeedConfigDescriptor = video_get_config_descriptor;
+#endif
 }

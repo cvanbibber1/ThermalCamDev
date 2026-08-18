@@ -1,0 +1,690 @@
+#!/usr/bin/env python3
+"""Desktop application for the Lepton 3.1R radiometric thermal camera.
+
+Video arrives over the USB video interface as 160x120 Y16, where every pixel is
+an absolute temperature in centikelvin, so any point in the picture can be read
+directly. Camera control (flat-field correction, status) runs at the same time
+over the USB CDC serial interface.
+
+    python tools/thermalcam_app.py
+    python tools/thermalcam_app.py --port COM55 --index 1
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import sys
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import thermal_imaging as ti
+
+try:
+    import cv2
+except ImportError:  # pragma: no cover - reported at runtime
+    sys.exit("opencv-python is required: pip install opencv-python")
+
+try:
+    from PySide6 import QtCore, QtGui, QtWidgets
+except ImportError:  # pragma: no cover - reported at runtime
+    sys.exit("PySide6 is required: pip install PySide6-Essentials")
+
+
+class CameraControl:
+    """Optional CDC control link. Video works whether or not this connects."""
+
+    def __init__(self) -> None:
+        self._link = None
+        self._cli = None
+        self.port = None
+        self.error = None
+
+    def connect(self, port: str | None) -> bool:
+        try:
+            import importlib.util
+
+            import serial.tools.list_ports as list_ports
+
+            location = Path(__file__).resolve().parent / "thermalcam_cli.py"
+            spec = importlib.util.spec_from_file_location("thermalcam_cli", str(location))
+            cli = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(cli)
+            self._cli = cli
+
+            if port is None:
+                found = [p.device for p in list_ports.comports() if "1209:F412" in p.hwid]
+                if not found:
+                    self.error = "no camera serial port found"
+                    return False
+                port = found[0]
+
+            self._link = cli.CameraLink(port, 921600, 1, 2.0)
+            self.port = port
+            self.error = None
+            return True
+        except Exception as exc:  # noqa: BLE001 - shown in the status bar
+            self.error = str(exc)
+            self._link = None
+            return False
+
+    @property
+    def connected(self) -> bool:
+        return self._link is not None
+
+    def run_ffc(self) -> str:
+        if not self.connected:
+            return "no control link"
+        try:
+            self._link.request(self._cli.OPCODES["ffc"])
+            return "flat-field correction requested"
+        except Exception as exc:  # noqa: BLE001
+            return f"flat-field correction failed: {exc}"
+
+    def ffc_status(self) -> str | None:
+        if not self.connected:
+            return None
+        try:
+            import struct
+
+            body = self._link.request(self._cli.OPCODES["ffc-status"])
+            mode, _lock, elapsed, period, _delta, _state = struct.unpack("<IIIIIi", body[:24])
+            names = {0: "manual", 1: "auto", 2: "external"}
+            return (
+                f"shutter {names.get(mode, mode)}, last correction "
+                f"{elapsed / 1000:.0f}s ago of {period / 1000:.0f}s"
+            )
+        except Exception:  # noqa: BLE001
+            return None
+
+    def close(self) -> None:
+        if self._link is not None:
+            try:
+                self._link.close()
+            except Exception:  # noqa: BLE001
+                pass
+            self._link = None
+
+
+class FrameGrabber(QtCore.QThread):
+    """Reads Y16 frames from the USB video interface.
+
+    DirectShow with colour conversion disabled is the only Windows path that
+    returns the raw 16-bit values. Every other backend hands back an 8-bit RGB
+    conversion, which discards the temperatures.
+    """
+
+    frame_ready = QtCore.Signal(object)
+    failed = QtCore.Signal(str)
+
+    def __init__(self, index: int | None) -> None:
+        super().__init__()
+        self._index = index
+        self._running = True
+
+    @staticmethod
+    def _configure(capture) -> None:
+        capture.set(cv2.CAP_PROP_CONVERT_RGB, 0)
+        capture.set(cv2.CAP_PROP_FRAME_WIDTH, ti.WIDTH)
+        capture.set(cv2.CAP_PROP_FRAME_HEIGHT, ti.HEIGHT)
+
+    @classmethod
+    def probe(cls) -> int | None:
+        for index in range(8):
+            capture = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+            if not capture.isOpened():
+                capture.release()
+                continue
+            cls._configure(capture)
+            ok, frame = capture.read()
+            capture.release()
+            if (
+                ok
+                and frame is not None
+                and frame.dtype == np.uint16
+                and frame.shape == (ti.HEIGHT, ti.WIDTH)
+            ):
+                return index
+        return None
+
+    def run(self) -> None:
+        index = self._index if self._index is not None else self.probe()
+        if index is None:
+            self.failed.emit(
+                "No Y16 camera found.\n\nCheck that the camera is connected and "
+                "that the radiometric firmware build is flashed."
+            )
+            return
+
+        capture = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+        if not capture.isOpened():
+            self.failed.emit(f"Could not open video device {index}.")
+            return
+        self._configure(capture)
+
+        try:
+            while self._running:
+                ok, frame = capture.read()
+                if not ok or frame is None:
+                    continue
+                if frame.dtype != np.uint16 or frame.shape != (ti.HEIGHT, ti.WIDTH):
+                    continue
+                self.frame_ready.emit(frame.astype(np.float64))
+        finally:
+            capture.release()
+
+    def stop(self) -> None:
+        self._running = False
+        self.wait(2000)
+
+
+@dataclass
+class Spot:
+    x: int
+    y: int
+
+
+@dataclass
+class ViewSettings:
+    colormap: str = "ironbow"
+    agc: str = "plateau"
+    plateau: float = 0.015
+    low_pct: float = 0.5
+    high_pct: float = 99.5
+    manual_low_c: float = 15.0
+    manual_high_c: float = 40.0
+    sharpen: float = 0.5
+    destripe: bool = True
+    flip_h: bool = False
+    flip_v: bool = False
+    unit: str = "C"
+    show_extremes: bool = True
+    spots: list[Spot] = field(default_factory=list)
+
+
+class PreviewLabel(QtWidgets.QLabel):
+    clicked = QtCore.Signal(int, int)
+    hovered = QtCore.Signal(int, int)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setMinimumSize(ti.WIDTH * 3, ti.HEIGHT * 3)
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setMouseTracking(True)
+        self.setCursor(QtCore.Qt.CrossCursor)
+        self.setStyleSheet("background:#101014;")
+        self._origin_x = 0
+        self._origin_y = 0
+        self._scale = 0.0
+
+    def set_image_geometry(self, x: int, y: int, scale: float) -> None:
+        self._origin_x, self._origin_y, self._scale = x, y, scale
+
+    def _to_sensor(self, point) -> tuple[int, int] | None:
+        if self._scale <= 0.0:
+            return None
+        x = int((point.x() - self._origin_x) / self._scale)
+        y = int((point.y() - self._origin_y) / self._scale)
+        if 0 <= x < ti.WIDTH and 0 <= y < ti.HEIGHT:
+            return x, y
+        return None
+
+    def mousePressEvent(self, event) -> None:
+        found = self._to_sensor(event.position())
+        if found is not None:
+            self.clicked.emit(found[0], found[1])
+
+    def mouseMoveEvent(self, event) -> None:
+        found = self._to_sensor(event.position())
+        if found is not None:
+            self.hovered.emit(found[0], found[1])
+
+
+class MainWindow(QtWidgets.QMainWindow):
+    def __init__(self, args) -> None:
+        super().__init__()
+        self.setWindowTitle("Lepton 3.1R Thermal Camera")
+        self.settings = ViewSettings()
+        self.frame = None
+        self.display = None
+        self.output_dir = Path(args.output).resolve()
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        self._writer = None
+        self._raw_log = None
+        self._recorded = 0
+        self._recording_path = None
+        self._times: list[float] = []
+        self._hover = None
+        self._image_buffer = None
+
+        self._build_ui()
+
+        self.control = CameraControl()
+        self.control.connect(args.port)
+
+        self.grabber = FrameGrabber(args.index)
+        self.grabber.frame_ready.connect(self.on_frame)
+        self.grabber.failed.connect(self.on_failure)
+        self.grabber.start()
+
+        self._status_timer = QtCore.QTimer(self)
+        self._status_timer.timeout.connect(self.refresh_status)
+        self._status_timer.start(2000)
+        self.refresh_status()
+
+    def _build_ui(self) -> None:
+        central = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(central)
+        self.preview = PreviewLabel()
+        self.preview.clicked.connect(self.on_click)
+        self.preview.hovered.connect(self.on_hover)
+        layout.addWidget(self.preview, 1)
+        layout.addWidget(self._build_panel())
+        self.setCentralWidget(central)
+
+        self.readout = QtWidgets.QLabel("waiting for frames")
+        self.statusBar().addWidget(self.readout, 1)
+        self.link_label = QtWidgets.QLabel("")
+        self.statusBar().addPermanentWidget(self.link_label)
+
+    def _build_panel(self) -> QtWidgets.QWidget:
+        panel = QtWidgets.QWidget()
+        panel.setFixedWidth(300)
+        box = QtWidgets.QVBoxLayout(panel)
+
+        image_group = QtWidgets.QGroupBox("Image")
+        form = QtWidgets.QFormLayout(image_group)
+
+        self.colormap_box = QtWidgets.QComboBox()
+        self.colormap_box.addItems(list(ti.COLORMAPS))
+        self.colormap_box.setCurrentText(self.settings.colormap)
+        self.colormap_box.currentTextChanged.connect(self._set_colormap)
+        form.addRow("Palette", self.colormap_box)
+
+        self.agc_box = QtWidgets.QComboBox()
+        self.agc_box.addItems(["plateau", "linear", "equalize", "manual"])
+        self.agc_box.setCurrentText(self.settings.agc)
+        self.agc_box.currentTextChanged.connect(self.on_agc_changed)
+        form.addRow("Contrast", self.agc_box)
+
+        self.sharpen_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.sharpen_slider.setRange(0, 200)
+        self.sharpen_slider.setValue(int(self.settings.sharpen * 100))
+        self.sharpen_slider.valueChanged.connect(self._set_sharpen)
+        form.addRow("Sharpen", self.sharpen_slider)
+
+        self.destripe_check = QtWidgets.QCheckBox("Remove column noise")
+        self.destripe_check.setChecked(self.settings.destripe)
+        self.destripe_check.toggled.connect(self._set_destripe)
+        form.addRow(self.destripe_check)
+
+        flips = QtWidgets.QHBoxLayout()
+        self.flip_h_check = QtWidgets.QCheckBox("Flip H")
+        self.flip_h_check.toggled.connect(self._set_flip_h)
+        self.flip_v_check = QtWidgets.QCheckBox("Flip V")
+        self.flip_v_check.toggled.connect(self._set_flip_v)
+        flips.addWidget(self.flip_h_check)
+        flips.addWidget(self.flip_v_check)
+        form.addRow(flips)
+        box.addWidget(image_group)
+
+        self.range_group = QtWidgets.QGroupBox("Manual range")
+        range_form = QtWidgets.QFormLayout(self.range_group)
+        self.low_spin = QtWidgets.QDoubleSpinBox()
+        self.low_spin.setRange(-40.0, 400.0)
+        self.low_spin.setValue(self.settings.manual_low_c)
+        self.low_spin.setSuffix(" °C")
+        self.low_spin.valueChanged.connect(self._set_low)
+        self.high_spin = QtWidgets.QDoubleSpinBox()
+        self.high_spin.setRange(-40.0, 400.0)
+        self.high_spin.setValue(self.settings.manual_high_c)
+        self.high_spin.setSuffix(" °C")
+        self.high_spin.valueChanged.connect(self._set_high)
+        range_form.addRow("Min", self.low_spin)
+        range_form.addRow("Max", self.high_spin)
+        from_frame = QtWidgets.QPushButton("Set from current frame")
+        from_frame.clicked.connect(self.on_range_from_frame)
+        range_form.addRow(from_frame)
+        self.range_group.setEnabled(False)
+        box.addWidget(self.range_group)
+
+        measure_group = QtWidgets.QGroupBox("Measurement")
+        measure = QtWidgets.QVBoxLayout(measure_group)
+        units = QtWidgets.QHBoxLayout()
+        self.celsius_radio = QtWidgets.QRadioButton("°C")
+        self.celsius_radio.setChecked(True)
+        self.fahrenheit_radio = QtWidgets.QRadioButton("°F")
+        self.celsius_radio.toggled.connect(self._set_unit)
+        units.addWidget(self.celsius_radio)
+        units.addWidget(self.fahrenheit_radio)
+        units.addStretch(1)
+        measure.addLayout(units)
+
+        self.extremes_check = QtWidgets.QCheckBox("Mark hottest and coldest")
+        self.extremes_check.setChecked(self.settings.show_extremes)
+        self.extremes_check.toggled.connect(self._set_extremes)
+        measure.addWidget(self.extremes_check)
+
+        hint = QtWidgets.QLabel("Click the image to add a spot marker.")
+        hint.setWordWrap(True)
+        measure.addWidget(hint)
+        clear = QtWidgets.QPushButton("Clear spots")
+        clear.clicked.connect(self.on_clear_spots)
+        measure.addWidget(clear)
+        self.spot_list = QtWidgets.QLabel("")
+        self.spot_list.setStyleSheet("font-family: Consolas, monospace;")
+        measure.addWidget(self.spot_list)
+        box.addWidget(measure_group)
+
+        camera_group = QtWidgets.QGroupBox("Camera")
+        camera = QtWidgets.QVBoxLayout(camera_group)
+        self.ffc_button = QtWidgets.QPushButton("Run flat-field correction")
+        self.ffc_button.clicked.connect(self.on_ffc)
+        camera.addWidget(self.ffc_button)
+        box.addWidget(camera_group)
+
+        capture_group = QtWidgets.QGroupBox("Capture")
+        capture = QtWidgets.QVBoxLayout(capture_group)
+        snapshot = QtWidgets.QPushButton("Save image")
+        snapshot.clicked.connect(self.on_snapshot)
+        capture.addWidget(snapshot)
+        self.record_button = QtWidgets.QPushButton("Start recording")
+        self.record_button.setCheckable(True)
+        self.record_button.toggled.connect(self.on_record)
+        capture.addWidget(self.record_button)
+        self.raw_check = QtWidgets.QCheckBox("Also log raw Y16 while recording")
+        capture.addWidget(self.raw_check)
+        open_folder = QtWidgets.QPushButton("Open output folder")
+        open_folder.clicked.connect(self.on_open_folder)
+        capture.addWidget(open_folder)
+        box.addWidget(capture_group)
+
+        box.addStretch(1)
+        return panel
+
+    def _set_colormap(self, value: str) -> None:
+        self.settings.colormap = value
+
+    def _set_sharpen(self, value: int) -> None:
+        self.settings.sharpen = value / 100.0
+
+    def _set_destripe(self, value: bool) -> None:
+        self.settings.destripe = value
+
+    def _set_flip_h(self, value: bool) -> None:
+        self.settings.flip_h = value
+
+    def _set_flip_v(self, value: bool) -> None:
+        self.settings.flip_v = value
+
+    def _set_low(self, value: float) -> None:
+        self.settings.manual_low_c = value
+
+    def _set_high(self, value: float) -> None:
+        self.settings.manual_high_c = value
+
+    def _set_unit(self, celsius: bool) -> None:
+        self.settings.unit = "C" if celsius else "F"
+        self._paint()
+        self._update_readout()
+
+    def _set_extremes(self, value: bool) -> None:
+        self.settings.show_extremes = value
+
+    def _oriented(self, frame):
+        if self.settings.flip_v:
+            frame = frame[::-1, :]
+        if self.settings.flip_h:
+            frame = frame[:, ::-1]
+        return np.ascontiguousarray(frame)
+
+    def on_frame(self, frame) -> None:
+        frame = self._oriented(frame)
+        self.frame = frame
+        self._times.append(time.time())
+        if len(self._times) > 60:
+            self._times.pop(0)
+
+        source = ti.destripe(frame) if self.settings.destripe else frame
+        mode = self.settings.agc
+        if mode == "plateau":
+            norm = ti.agc_plateau(source, self.settings.plateau)
+        elif mode == "linear":
+            norm = ti.agc_linear(source, self.settings.low_pct, self.settings.high_pct)
+        elif mode == "equalize":
+            norm = ti.agc_equalize(source)
+        else:
+            norm = ti.agc_manual(
+                source,
+                ti.celsius_to_counts(self.settings.manual_low_c),
+                ti.celsius_to_counts(self.settings.manual_high_c),
+            )
+        norm = ti.unsharp(norm, self.settings.sharpen)
+        self.display = np.ascontiguousarray(ti.colorize(norm, self.settings.colormap))
+
+        if self._writer is not None:
+            self._writer.write(cv2.cvtColor(self.display, cv2.COLOR_RGB2BGR))
+            self._recorded += 1
+            if self._raw_log is not None:
+                self._raw_log.write(frame.astype("<u2").tobytes())
+
+        self._paint()
+        self._update_readout()
+
+    def _paint(self) -> None:
+        if self.display is None:
+            return
+        # QImage does not copy, so the backing bytes must outlive it.
+        self._image_buffer = self.display.tobytes()
+        image = QtGui.QImage(
+            self._image_buffer, ti.WIDTH, ti.HEIGHT, ti.WIDTH * 3,
+            QtGui.QImage.Format_RGB888,
+        )
+        area = self.preview.size()
+        scale = max(1.0, min(area.width() / ti.WIDTH, area.height() / ti.HEIGHT))
+        pixmap = QtGui.QPixmap.fromImage(image).scaled(
+            QtCore.QSize(int(ti.WIDTH * scale), int(ti.HEIGHT * scale)),
+            QtCore.Qt.KeepAspectRatio,
+            QtCore.Qt.SmoothTransformation,
+        )
+        self.preview.set_image_geometry(
+            (area.width() - pixmap.width()) // 2,
+            (area.height() - pixmap.height()) // 2,
+            pixmap.width() / ti.WIDTH,
+        )
+        self._draw_overlay(pixmap)
+        self.preview.setPixmap(pixmap)
+
+    def _draw_overlay(self, pixmap) -> None:
+        if self.frame is None:
+            return
+        scale = pixmap.width() / ti.WIDTH
+        painter = QtGui.QPainter(pixmap)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        font = painter.font()
+        font.setPointSizeF(max(7.0, 2.6 * scale))
+        painter.setFont(font)
+
+        if self.settings.show_extremes:
+            for index, colour in (
+                (int(self.frame.argmin()), "#7fd0ff"),
+                (int(self.frame.argmax()), "#ff7043"),
+            ):
+                y, x = divmod(index, ti.WIDTH)
+                self._marker(painter, pixmap, x, y, scale, colour)
+
+        for spot in self.settings.spots:
+            self._marker(painter, pixmap, spot.x, spot.y, scale, "#ffffff")
+        painter.end()
+
+    def _marker(self, painter, pixmap, x, y, scale, colour) -> None:
+        text = ti.format_temperature(self.frame[y, x], self.settings.unit)
+        px = (x + 0.5) * scale
+        py = (y + 0.5) * scale
+        radius = max(4.0, 1.5 * scale)
+
+        pen = QtGui.QPen(QtGui.QColor(colour))
+        pen.setWidthF(max(1.4, scale / 5.0))
+        painter.setPen(pen)
+        painter.drawLine(QtCore.QPointF(px - radius, py), QtCore.QPointF(px + radius, py))
+        painter.drawLine(QtCore.QPointF(px, py - radius), QtCore.QPointF(px, py + radius))
+
+        rect = painter.fontMetrics().boundingRect(text).adjusted(-4, -2, 4, 2)
+        # Keep the label on screen when the marker sits near an edge.
+        left = min(max(px + radius + 3.0, 0.0), float(pixmap.width() - rect.width()))
+        top = min(max(py - radius - rect.height(), 0.0), float(pixmap.height() - rect.height()))
+        rect.moveTo(int(left), int(top))
+        painter.fillRect(rect, QtGui.QColor(0, 0, 0, 160))
+        painter.drawText(rect, QtCore.Qt.AlignCenter, text)
+
+    def on_click(self, x: int, y: int) -> None:
+        self.settings.spots.append(Spot(x, y))
+        self._paint()
+        self._update_readout()
+
+    def on_hover(self, x: int, y: int) -> None:
+        self._hover = (x, y)
+        self._update_readout()
+
+    def on_clear_spots(self) -> None:
+        self.settings.spots.clear()
+        self._paint()
+        self._update_readout()
+
+    def on_agc_changed(self, value: str) -> None:
+        self.settings.agc = value
+        self.range_group.setEnabled(value == "manual")
+
+    def on_range_from_frame(self) -> None:
+        if self.frame is None:
+            return
+        self.low_spin.setValue(float(ti.counts_to_celsius(self.frame.min())))
+        self.high_spin.setValue(float(ti.counts_to_celsius(self.frame.max())))
+
+    def on_ffc(self) -> None:
+        self.statusBar().showMessage(self.control.run_ffc(), 4000)
+
+    def on_open_folder(self) -> None:
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(self.output_dir)))
+
+    def on_snapshot(self) -> None:
+        if self.frame is None or self.display is None:
+            return
+        base = self.output_dir / f"thermal-{time.strftime('%Y%m%d-%H%M%S')}"
+        cv2.imwrite(str(base.with_suffix(".png")),
+                    cv2.cvtColor(self.display, cv2.COLOR_RGB2BGR))
+        self.frame.astype("<u2").tofile(base.with_suffix(".raw"))
+        # Per-pixel temperatures in a form a spreadsheet opens directly.
+        with open(base.with_suffix(".csv"), "w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            for row in ti.counts_to_celsius(self.frame):
+                writer.writerow([f"{value:.2f}" for value in row])
+        self.statusBar().showMessage(f"saved {base.name}.png, .raw and .csv", 5000)
+
+    def on_record(self, active: bool) -> None:
+        if active:
+            if self.display is None:
+                self.record_button.setChecked(False)
+                return
+            self._recording_path = self.output_dir / f"thermal-{time.strftime('%Y%m%d-%H%M%S')}.mp4"
+            # The camera produces roughly nine unique frames a second.
+            self._writer = cv2.VideoWriter(
+                str(self._recording_path),
+                cv2.VideoWriter_fourcc(*"mp4v"),
+                9.0,
+                (ti.WIDTH, ti.HEIGHT),
+            )
+            if not self._writer.isOpened():
+                self._writer = None
+                self.record_button.setChecked(False)
+                self.statusBar().showMessage("could not open the video writer", 5000)
+                return
+            if self.raw_check.isChecked():
+                self._raw_log = open(self._recording_path.with_suffix(".y16"), "wb")
+            self._recorded = 0
+            self.record_button.setText("Stop recording")
+        else:
+            if self._writer is not None:
+                self._writer.release()
+                self._writer = None
+            if self._raw_log is not None:
+                self._raw_log.close()
+                self._raw_log = None
+            if self._recording_path is not None:
+                self.statusBar().showMessage(
+                    f"saved {self._recording_path.name}, {self._recorded} frames", 6000
+                )
+            self.record_button.setText("Start recording")
+
+    def _update_readout(self) -> None:
+        if self.frame is None:
+            return
+        unit = self.settings.unit
+        parts = [
+            f"min {ti.format_temperature(self.frame.min(), unit)}",
+            f"max {ti.format_temperature(self.frame.max(), unit)}",
+            f"centre {ti.format_temperature(self.frame[ti.HEIGHT // 2, ti.WIDTH // 2], unit)}",
+        ]
+        if self._hover is not None:
+            x, y = self._hover
+            parts.append(f"cursor {ti.format_temperature(self.frame[y, x], unit)}")
+        if len(self._times) > 1:
+            span = self._times[-1] - self._times[0]
+            if span > 0:
+                parts.append(f"{(len(self._times) - 1) / span:.1f} fps")
+        if self._writer is not None:
+            parts.append(f"recording {self._recorded}")
+        self.readout.setText("    ".join(parts))
+
+        self.spot_list.setText(
+            "\n".join(
+                f"{number}. ({spot.x:3d},{spot.y:3d})  "
+                f"{ti.format_temperature(self.frame[spot.y, spot.x], unit)}"
+                for number, spot in enumerate(self.settings.spots, start=1)
+            )
+        )
+
+    def refresh_status(self) -> None:
+        if not self.control.connected:
+            self.link_label.setText(f"control link: {self.control.error or 'offline'}")
+            self.ffc_button.setEnabled(False)
+            return
+        self.ffc_button.setEnabled(True)
+        status = self.control.ffc_status()
+        self.link_label.setText(
+            f"{self.control.port}    {status}" if status else str(self.control.port)
+        )
+
+    def on_failure(self, message: str) -> None:
+        QtWidgets.QMessageBox.critical(self, "Camera", message)
+
+    def closeEvent(self, event) -> None:
+        if self._writer is not None:
+            self.on_record(False)
+        self.grabber.stop()
+        self.control.close()
+        super().closeEvent(event)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--index", type=int, help="video device index (default: probe)")
+    parser.add_argument("--port", help="control port, for example COM55 (default: probe)")
+    parser.add_argument("--output", default="captures", help="folder for images and video")
+    args = parser.parse_args()
+
+    app = QtWidgets.QApplication(sys.argv)
+    window = MainWindow(args)
+    window.resize(1100, 660)
+    window.show()
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -37,6 +37,34 @@ winget install --id BrechtSanders.WinLibs.POSIX.UCRT --exact
 
 The target artifacts are `.pio/build/target/firmware.elf` and `firmware.bin`.
 
+## Thermal camera application
+
+`tools/thermalcam_app.py` is the primary interface. It takes live radiometric
+video from the USB video interface and camera control from USB CDC at the same
+time, so every pixel is an absolute temperature.
+
+```powershell
+python .\tools\thermalcam_app.py
+```
+
+- Live preview with selectable palettes and plateau, linear, equalized, or
+  manual contrast.
+- Click anywhere to drop a spot marker reading absolute temperature; the
+  hottest and coldest points are marked automatically. Switch between Celsius
+  and Fahrenheit at any time.
+- Save an image as a rendered PNG, the raw Y16 frame, and a CSV of per-pixel
+  temperatures. Record video, optionally logging the raw Y16 stream alongside.
+- Run a flat-field correction on demand, and see the camera's shutter policy
+  and the time since its last automatic correction.
+- Column-noise removal, sharpening, and image flips.
+
+Supporting tools:
+
+```powershell
+python .\tools\uvc_capture.py --seconds 10
+python .\tools\render_frame.py frame.raw -o out.png --destripe
+```
+
 ## Host control
 
 The same command protocol is available on USB CDC and USART2/ADM2582E:

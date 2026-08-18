@@ -82,8 +82,12 @@ static int8_t video_data(uint8_t **buffer, uint16_t *size, uint16_t *index) {
     active_frame = latest == NULL ? (const uint8_t *)empty_frame : (const uint8_t *)latest;
   }
 
+  /* Send raw counts for whichever index carries Y16 and convert for the other. */
+  uint8_t committed = USBD_VIDEO_GetCommittedFormat();
   const bool radiometric =
-      USBD_VIDEO_GetCommittedFormat() == UVC_FORMAT_INDEX_Y16;
+      (UVC_UNCOMPRESSED_GUID == UVC_GUID_Y16_FOURCC)
+          ? (committed != UVC_FORMAT_INDEX_SECOND)
+          : (committed == UVC_FORMAT_INDEX_SECOND);
 
   *index = packet_index;
   if ((packet_index < full_packets) ||
