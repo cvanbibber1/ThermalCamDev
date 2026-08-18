@@ -37,3 +37,14 @@ int lepton_capture_run_ffc(void);
  * see the note in usb_video_if.c. */
 void lepton_capture_hold_frame(bool hold);
 
+/* Scene bounds of the published frame, refreshed whenever one is published.
+ * The USB video callback maps 16-bit counts to 8-bit luma from these, so they
+ * are derived here in the task loop rather than in interrupt context. */
+typedef struct {
+  uint16_t minimum;
+  /* (255 << 16) / span, so the callback can scale with a multiply and shift. */
+  uint32_t scale;
+} lepton_agc_t;
+
+void lepton_capture_get_agc(lepton_agc_t *agc);
+

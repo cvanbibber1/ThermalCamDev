@@ -7,6 +7,9 @@
 #define USB_DEV_VID 0x1209U
 #define USB_DEV_PID 0xF412U
 #define USB_LANGID 0x0409U
+/* bcdDevice. Bump whenever the configuration descriptor changes so Windows
+ * re-reads it instead of serving a cached copy for this VID/PID/serial. */
+#define USB_DEV_BCD 0x0301U
 #define USB_SERIAL_DESCRIPTOR_SIZE 26U
 
 static uint8_t *device_descriptor(USBD_SpeedTypeDef speed, uint16_t *length);
@@ -34,7 +37,7 @@ __ALIGN_BEGIN static uint8_t device_desc[USB_LEN_DEV_DESC] __ALIGN_END = {
     USB_MAX_EP0_SIZE,
     LOBYTE(USB_DEV_VID), HIBYTE(USB_DEV_VID),
     LOBYTE(USB_DEV_PID), HIBYTE(USB_DEV_PID),
-    0x00U, 0x02U,
+    LOBYTE(USB_DEV_BCD), HIBYTE(USB_DEV_BCD),
     USBD_IDX_MFC_STR, USBD_IDX_PRODUCT_STR, USBD_IDX_SERIAL_STR,
     USBD_MAX_NUM_CONFIGURATION,
 };

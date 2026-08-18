@@ -2,12 +2,42 @@
 
 #include "app_config.h"
 #include "lepton_capture.h"
+#include "usbd_video.h"
 
 #include <string.h>
+
 
 static uint16_t empty_frame[APP_FRAME_PIXELS];
 static const uint8_t *active_frame = (const uint8_t *)empty_frame;
 static uint16_t packet_index;
+/* YUY2 is generated a packet at a time. The class driver copies out of this
+ * before returning, and one packet's worth avoids a second full frame in RAM. */
+static uint8_t yuy2_packet[UVC_PACKET_SIZE];
+
+/* Y16 counts to YUY2. Luma is the scene stretched to 8 bits and the chroma
+ * bytes are neutral, giving hosts that cannot read Y16 a plain white-hot
+ * image. YUY2 stores Y0 U Y1 V, so within the packed stream every even byte is
+ * a luma sample and every odd byte is chroma. */
+static const uint8_t *build_yuy2(size_t byte_offset, uint16_t length) {
+  lepton_agc_t agc;
+  lepton_capture_get_agc(&agc);
+  const uint16_t *pixels = (const uint16_t *)(const void *)active_frame;
+
+  for (uint16_t index = 0U; index < length; ++index) {
+    size_t position = byte_offset + index;
+    if ((position & 1U) != 0U) {
+      yuy2_packet[index] = 128U;
+      continue;
+    }
+    uint16_t value = pixels[position >> 1];
+    uint32_t luma = 0U;
+    if (value > agc.minimum) {
+      luma = ((uint32_t)(value - agc.minimum) * agc.scale) >> 16;
+    }
+    yuy2_packet[index] = (uint8_t)(luma > 255U ? 255U : luma);
+  }
+  return yuy2_packet;
+}
 
 static int8_t video_init(void) {
   packet_index = 0U;
@@ -52,14 +82,18 @@ static int8_t video_data(uint8_t **buffer, uint16_t *size, uint16_t *index) {
     active_frame = latest == NULL ? (const uint8_t *)empty_frame : (const uint8_t *)latest;
   }
 
+  const bool radiometric =
+      USBD_VIDEO_GetCommittedFormat() == UVC_FORMAT_INDEX_Y16;
+
   *index = packet_index;
-  if (packet_index < full_packets) {
-    *buffer = (uint8_t *)&active_frame[(size_t)packet_index * payload_capacity];
-    *size = UVC_PACKET_SIZE;
-    ++packet_index;
-  } else if ((packet_index == full_packets) && (remainder != 0U)) {
-    *buffer = (uint8_t *)&active_frame[(size_t)packet_index * payload_capacity];
-    *size = (uint16_t)(remainder + 2U);
+  if ((packet_index < full_packets) ||
+      ((packet_index == full_packets) && (remainder != 0U))) {
+    size_t offset = (size_t)packet_index * payload_capacity;
+    uint16_t payload =
+        packet_index < full_packets ? payload_capacity : remainder;
+    *buffer = radiometric ? (uint8_t *)&active_frame[offset]
+                          : (uint8_t *)build_yuy2(offset, payload);
+    *size = (uint16_t)(payload + 2U);
     ++packet_index;
   } else {
     /* Header-only packet terminates the payload. */

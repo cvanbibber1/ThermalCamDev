@@ -44,6 +44,10 @@ bool usb_device_init(void) {
       (USBD_CDC_RegisterInterface(&g_usb_device, &g_usb_cdc_interface) != USBD_OK)) {
     return false;
   }
+  /* Must run after both classes are built into the descriptor and before the
+   * device is started, so the host only ever sees the two-format version. */
+  usb_video_format_install(&g_usb_device);
+
   return USBD_Start(&g_usb_device) == USBD_OK;
 }
 

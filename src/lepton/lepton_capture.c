@@ -44,6 +44,7 @@ static uint8_t barren_chunks;
 static uint32_t hold_started_ms;
 static uint32_t last_ffc_check_ms;
 static bool frame_held;
+static lepton_agc_t frame_agc = {0U, 0U};
 static lepton_capture_status_t capture_status;
 static uint32_t state_started_ms;
 static uint32_t last_boot_poll_ms;
@@ -97,6 +98,36 @@ void lepton_capture_init(void) {
   enter_state(LEPTON_STATE_POWER_OFF);
 }
 
+/* Percentile clipping would suit a display better, but a full histogram per
+ * frame is not worth the cycles here: the host application does its own
+ * tone mapping from the Y16 stream, and this only has to make the YUY2
+ * preview legible. */
+static void update_agc(void) {
+  uint32_t generation = 0U;
+  const uint16_t *frame = vospi_latest_frame(&parser, &generation);
+  if (frame == NULL) {
+    return;
+  }
+  uint16_t minimum = frame[0];
+  uint16_t maximum = frame[0];
+  for (size_t index = 1U; index < APP_FRAME_PIXELS; ++index) {
+    uint16_t value = frame[index];
+    if (value < minimum) {
+      minimum = value;
+    } else if (value > maximum) {
+      maximum = value;
+    }
+  }
+  uint32_t span = (uint32_t)maximum - minimum;
+  if (span == 0U) {
+    span = 1U;
+  }
+  __disable_irq();
+  frame_agc.minimum = minimum;
+  frame_agc.scale = (255U << 16) / span;
+  __enable_irq();
+}
+
 static void handle_result(vospi_result_t result) {
   if (result == VOSPI_RESULT_SEGMENT) {
     health_increment(&g_health.vospi_segments);
@@ -105,6 +136,7 @@ static void handle_result(vospi_result_t result) {
   }
   if (result == VOSPI_RESULT_FRAME) {
     health_increment(&g_health.vospi_segments);
+    update_agc();
     capture_status.frame_generation = parser.generation;
     health_increment(&g_health.frames_complete);
   } else if (result == VOSPI_RESULT_CRC_ERROR) {
@@ -396,6 +428,14 @@ void lepton_capture_get_status(lepton_capture_status_t *status) {
   if (status != NULL) {
     __disable_irq();
     *status = capture_status;
+    __enable_irq();
+  }
+}
+
+void lepton_capture_get_agc(lepton_agc_t *agc) {
+  if (agc != NULL) {
+    __disable_irq();
+    *agc = frame_agc;
     __enable_irq();
   }
 }
