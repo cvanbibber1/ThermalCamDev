@@ -1,0 +1,38 @@
+#pragma once
+
+#include "protocol/wire_protocol.h"
+
+#include <stdbool.h>
+#include <stdint.h>
+
+enum {
+  OPCODE_GET_INFO = 0x0001U,
+  OPCODE_GET_HEALTH = 0x0002U,
+  OPCODE_DISCOVER = 0x0003U,
+  OPCODE_LEPTON_STATUS = 0x0100U,
+  OPCODE_LEPTON_CCI_GET = 0x0101U,
+  OPCODE_LEPTON_CCI_SET = 0x0102U,
+  OPCODE_LEPTON_RUN_FFC = 0x0103U,
+  OPCODE_LEPTON_FFC_STATUS = 0x0107U,
+  OPCODE_LEPTON_CCI_RUN = 0x0104U,
+  OPCODE_LEPTON_REG_READ = 0x0105U,
+  OPCODE_LEPTON_REG_WRITE = 0x0106U,
+  OPCODE_STREAM_STATUS = 0x0200U,
+  OPCODE_FRAME_CHUNK = 0x0201U,
+  OPCODE_DOSIMETER_STATUS = 0x0300U,
+  OPCODE_BUS_STATUS = 0x0400U,
+  OPCODE_BUS_ASSIGN_ADDRESS = 0x0401U,
+};
+
+enum {
+  COMMAND_OK = 0,
+  COMMAND_BAD_OPCODE = -1,
+  COMMAND_BAD_LENGTH = -2,
+  COMMAND_NOT_READY = -3,
+  COMMAND_STALE_FRAME = -4,
+  COMMAND_INTERNAL_ERROR = -5,
+};
+
+void command_dispatch_init(void);
+bool command_dispatch(const wire_message_t *request, uint8_t local_address,
+                      wire_message_t *response);

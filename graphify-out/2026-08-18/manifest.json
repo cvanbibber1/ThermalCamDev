@@ -1,0 +1,332 @@
+{
+  "include/app_config.h": {
+    "mtime": 1787072031.987033,
+    "ast_hash": "4b7e4eb300261b2f7e76f3442cad5ec9",
+    "semantic_hash": ""
+  },
+  "include/board.h": {
+    "mtime": 1787074529.648136,
+    "ast_hash": "ee9fa339769060755f86ac755a725f7f",
+    "semantic_hash": ""
+  },
+  "include/command_dispatch.h": {
+    "mtime": 1787005699.5843384,
+    "ast_hash": "7eee926025a75ab691508d7ce5c568d0",
+    "semantic_hash": "7eee926025a75ab691508d7ce5c568d0"
+  },
+  "include/dosimeter.h": {
+    "mtime": 1787004727.9705794,
+    "ast_hash": "af47c3a3020491fe00c59c2680ed68f0",
+    "semantic_hash": "af47c3a3020491fe00c59c2680ed68f0"
+  },
+  "include/health.h": {
+    "mtime": 1787004499.534012,
+    "ast_hash": "d54ac615241f6e3bb5199963b9e36208",
+    "semantic_hash": "d54ac615241f6e3bb5199963b9e36208"
+  },
+  "include/lepton_capture.h": {
+    "mtime": 1787004904.6604545,
+    "ast_hash": "59ab38a23379851777ecd6d39244d6bd",
+    "semantic_hash": "59ab38a23379851777ecd6d39244d6bd"
+  },
+  "include/lepton_cci.h": {
+    "mtime": 1787005007.9733622,
+    "ast_hash": "d99094f58966e37eb4c6582175f25555",
+    "semantic_hash": "d99094f58966e37eb4c6582175f25555"
+  },
+  "include/protocol/cobs.h": {
+    "mtime": 1787004688.4714713,
+    "ast_hash": "154a67b3692f42435e0c0993b4c285d0",
+    "semantic_hash": "154a67b3692f42435e0c0993b4c285d0"
+  },
+  "include/protocol/crc.h": {
+    "mtime": 1787004688.4695218,
+    "ast_hash": "ce37e97d13bb3792c4f6e80fb89259ea",
+    "semantic_hash": "ce37e97d13bb3792c4f6e80fb89259ea"
+  },
+  "include/protocol/wire_protocol.h": {
+    "mtime": 1787004688.47392,
+    "ast_hash": "e10c7ec8d807ae123dd4c4264385b55c",
+    "semantic_hash": "e10c7ec8d807ae123dd4c4264385b55c"
+  },
+  "include/rs485.h": {
+    "mtime": 1787005699.5864706,
+    "ast_hash": "acb69bbbd1194b825879584f7d5d499b",
+    "semantic_hash": "acb69bbbd1194b825879584f7d5d499b"
+  },
+  "include/stm32f4xx_hal_conf.h": {
+    "mtime": 1787005228.8756497,
+    "ast_hash": "0e3b3b2549f465fb8c7121cc09e0255e",
+    "semantic_hash": "0e3b3b2549f465fb8c7121cc09e0255e"
+  },
+  "include/usb_cdc_if.h": {
+    "mtime": 1787005146.2895324,
+    "ast_hash": "87fcb04809d6592d2e4a45c44bd0d384",
+    "semantic_hash": "87fcb04809d6592d2e4a45c44bd0d384"
+  },
+  "include/usb_device.h": {
+    "mtime": 1787005146.2873569,
+    "ast_hash": "590ff57d899c6cd8faa81efed22d8ff2",
+    "semantic_hash": "590ff57d899c6cd8faa81efed22d8ff2"
+  },
+  "include/usb_video_if.h": {
+    "mtime": 1787005146.2908351,
+    "ast_hash": "a6c01a5ac1e8e6d802a827462b7b8371",
+    "semantic_hash": "a6c01a5ac1e8e6d802a827462b7b8371"
+  },
+  "include/usbd_conf.h": {
+    "mtime": 1787005818.3757517,
+    "ast_hash": "90320290dec4948d4dca8b91867e04c4",
+    "semantic_hash": "90320290dec4948d4dca8b91867e04c4"
+  },
+  "include/usbd_desc.h": {
+    "mtime": 1787005146.2928667,
+    "ast_hash": "27c250f480042dd44c7eac5fa71d70dd",
+    "semantic_hash": "27c250f480042dd44c7eac5fa71d70dd"
+  },
+  "include/vospi_parser.h": {
+    "mtime": 1787004904.6584096,
+    "ast_hash": "e66a10230a81e42eacc385d0bf75134f",
+    "semantic_hash": "e66a10230a81e42eacc385d0bf75134f"
+  },
+  "src/board/board.c": {
+    "mtime": 1787074529.6495097,
+    "ast_hash": "0fee91904ea4db4953f99d686206ddf7",
+    "semantic_hash": ""
+  },
+  "src/board/stm32f4xx_it.c": {
+    "mtime": 1787072912.7032156,
+    "ast_hash": "9399c9a65ca30a8e377abff671c9f837",
+    "semantic_hash": ""
+  },
+  "src/drivers/dosimeter.c": {
+    "mtime": 1787004727.972797,
+    "ast_hash": "8ff02911fa5a1b34f94375ad3f409133",
+    "semantic_hash": "8ff02911fa5a1b34f94375ad3f409133"
+  },
+  "src/drivers/rs485.c": {
+    "mtime": 1787005939.1692252,
+    "ast_hash": "9ac22a0cbf1a23608de6d691d1ab1554",
+    "semantic_hash": "9ac22a0cbf1a23608de6d691d1ab1554"
+  },
+  "src/health.c": {
+    "mtime": 1787004499.5381064,
+    "ast_hash": "dd8b9fdbe3dd32fddd4aaf9cd528dad6",
+    "semantic_hash": "dd8b9fdbe3dd32fddd4aaf9cd528dad6"
+  },
+  "src/lepton/lepton_capture.c": {
+    "mtime": 1787075060.3126879,
+    "ast_hash": "beb8cb99662ffad1c5615e5f8607c3cc",
+    "semantic_hash": ""
+  },
+  "src/lepton/lepton_cci.c": {
+    "mtime": 1787075957.57322,
+    "ast_hash": "755fee48fac75b0e31f7973a2c0411ff",
+    "semantic_hash": ""
+  },
+  "src/lepton/vospi_parser.c": {
+    "mtime": 1787073453.8076372,
+    "ast_hash": "1a529c55c5252fcc4c3aae4554af6d10",
+    "semantic_hash": ""
+  },
+  "src/main.c": {
+    "mtime": 1787009097.5264504,
+    "ast_hash": "f76c536b2d256c7d6413a3ad00f9dea8",
+    "semantic_hash": ""
+  },
+  "src/protocol/cobs.c": {
+    "mtime": 1787004688.4790854,
+    "ast_hash": "941fd495e483dc4e98c7c40d0b5dcceb",
+    "semantic_hash": "941fd495e483dc4e98c7c40d0b5dcceb"
+  },
+  "src/protocol/command_dispatch.c": {
+    "mtime": 1787005699.5894022,
+    "ast_hash": "c2c93d7da3aa380dc4fabfeb347bce98",
+    "semantic_hash": "c2c93d7da3aa380dc4fabfeb347bce98"
+  },
+  "src/protocol/crc.c": {
+    "mtime": 1787004688.4761262,
+    "ast_hash": "76085b904a4674db8b802f72de029305",
+    "semantic_hash": "76085b904a4674db8b802f72de029305"
+  },
+  "src/protocol/wire_protocol.c": {
+    "mtime": 1787004688.480087,
+    "ast_hash": "0e0e2c2d7d1297e7c78da6699170db7c",
+    "semantic_hash": "0e0e2c2d7d1297e7c78da6699170db7c"
+  },
+  "src/usb/usb_cdc_if.c": {
+    "mtime": 1787005146.2981436,
+    "ast_hash": "4d090e6dec692e8ed121c0469bfbdf9a",
+    "semantic_hash": "4d090e6dec692e8ed121c0469bfbdf9a"
+  },
+  "src/usb/usb_device.c": {
+    "mtime": 1787005818.3737159,
+    "ast_hash": "b3f12c62f3389f45a8017eab8290b3ea",
+    "semantic_hash": "b3f12c62f3389f45a8017eab8290b3ea"
+  },
+  "src/usb/usb_video_if.c": {
+    "mtime": 1787005146.2997282,
+    "ast_hash": "e4727e904669196fb7836b732d3efc38",
+    "semantic_hash": "e4727e904669196fb7836b732d3efc38"
+  },
+  "src/usb/usbd_conf.c": {
+    "mtime": 1787009388.8804214,
+    "ast_hash": "22429f1f881918951abcefa5f009cb1f",
+    "semantic_hash": ""
+  },
+  "src/usb/usbd_desc.c": {
+    "mtime": 1787005212.3750381,
+    "ast_hash": "c1194ec1b4186d18d7dd77c6088d5022",
+    "semantic_hash": "c1194ec1b4186d18d7dd77c6088d5022"
+  },
+  "test/test_core/test_main.c": {
+    "mtime": 1787073087.5492654,
+    "ast_hash": "36a8be773104500fc13a412ee840d355",
+    "semantic_hash": ""
+  },
+  "tools/thermalcam_cli.py": {
+    "mtime": 1787005705.8580601,
+    "ast_hash": "21a60544f91e97323b2dc16c78032543",
+    "semantic_hash": "21a60544f91e97323b2dc16c78032543"
+  },
+  "FT2232 Information.md": {
+    "mtime": 1787000701.1953738,
+    "ast_hash": "d3408316b5fc450a22a974af9abef2ef",
+    "semantic_hash": "d3408316b5fc450a22a974af9abef2ef"
+  },
+  "Knowledge Base/Architecture/System Specification v0.1.md": {
+    "mtime": 1787006122.1856732,
+    "ast_hash": "de05f00dc1011e883d2912b1228a526d",
+    "semantic_hash": "de05f00dc1011e883d2912b1228a526d"
+  },
+  "Knowledge Base/Hardware/Pin Map.md": {
+    "mtime": 1787003957.5478408,
+    "ast_hash": "65094bfccd08a130a75f5740d3648031",
+    "semantic_hash": "65094bfccd08a130a75f5740d3648031"
+  },
+  "Knowledge Base/Home.md": {
+    "mtime": 1787005638.0481641,
+    "ast_hash": "ee5f3b41c91b8b8061537a4a8388c6b5",
+    "semantic_hash": "ee5f3b41c91b8b8061537a4a8388c6b5"
+  },
+  "Knowledge Base/Interfaces/Dosimeter Telemetry.md": {
+    "mtime": 1787003957.552583,
+    "ast_hash": "d5399072722fb2d3f83ee68c70aea854",
+    "semantic_hash": "d5399072722fb2d3f83ee68c70aea854"
+  },
+  "Knowledge Base/Interfaces/Lepton Interface.md": {
+    "mtime": 1787001354.9448874,
+    "ast_hash": "2170ab56db6fd293718c179102112ca4",
+    "semantic_hash": "2170ab56db6fd293718c179102112ca4"
+  },
+  "Knowledge Base/Interfaces/RS-485 Multidrop Protocol.md": {
+    "mtime": 1787005939.1724367,
+    "ast_hash": "74a65088f147fc2dfefffd2f073b4c33",
+    "semantic_hash": "74a65088f147fc2dfefffd2f073b4c33"
+  },
+  "Knowledge Base/Interfaces/USB Interface.md": {
+    "mtime": 1787005992.3421185,
+    "ast_hash": "d33e1fb63c8faf27f23ad8a90d18ec49",
+    "semantic_hash": "d33e1fb63c8faf27f23ad8a90d18ec49"
+  },
+  "Knowledge Base/Project/Decision Log.md": {
+    "mtime": 1787003957.551559,
+    "ast_hash": "b2c0d869e7228c0f15df7e4f9ef34171",
+    "semantic_hash": "b2c0d869e7228c0f15df7e4f9ef34171"
+  },
+  "Knowledge Base/Project/Implementation Status.md": {
+    "mtime": 1787076733.653713,
+    "ast_hash": "cffd92aaf95c19cdb25453801bb40202",
+    "semantic_hash": ""
+  },
+  "Knowledge Base/Project/Risks and Bugs.md": {
+    "mtime": 1787076733.6517098,
+    "ast_hash": "b0de22f498d8014ad75e6b10a1d5255b",
+    "semantic_hash": ""
+  },
+  "Knowledge Base/Project/TODO.md": {
+    "mtime": 1787076733.6527152,
+    "ast_hash": "d8b6794f67855ce43db32eabdd874e2d",
+    "semantic_hash": ""
+  },
+  "Knowledge Base/Sources/Primary Sources.md": {
+    "mtime": 1787003990.7597692,
+    "ast_hash": "e77f53b4e27bb89e4e17f0d70e221f49",
+    "semantic_hash": "e77f53b4e27bb89e4e17f0d70e221f49"
+  },
+  "README.md": {
+    "mtime": 1787005638.0469081,
+    "ast_hash": "86beb4ba47f28cf9b14f6563e73465bf",
+    "semantic_hash": "86beb4ba47f28cf9b14f6563e73465bf"
+  },
+  "requirements-dev.txt": {
+    "mtime": 1787005532.021057,
+    "ast_hash": "6ef5fdd3496dcb78be19aa5d03dae28c",
+    "semantic_hash": "6ef5fdd3496dcb78be19aa5d03dae28c"
+  },
+  ".vscode/c_cpp_properties.json": {
+    "mtime": 1787071913.4091597,
+    "ast_hash": "9d165c8b6377dcdd7acca14233034849",
+    "semantic_hash": ""
+  },
+  ".vscode/extensions.json": {
+    "mtime": 1787071913.4102619,
+    "ast_hash": "41e5d8dec3ff179fe5aecb46632391ca",
+    "semantic_hash": ""
+  },
+  ".vscode/launch.json": {
+    "mtime": 1787071913.4127827,
+    "ast_hash": "2b1ab2f271008c26ffdf79b78ce17673",
+    "semantic_hash": ""
+  },
+  "Knowledge Base/Project/Handoff - USB Lepton and RS422.md": {
+    "mtime": 1787076733.649189,
+    "ast_hash": "b126a22203df2b422531b3429d268a9d",
+    "semantic_hash": ""
+  },
+  "STP_protocol_req.md": {
+    "mtime": 1787073832.3120344,
+    "ast_hash": "4ff17854c72a51d528777b8a96a06de3",
+    "semantic_hash": ""
+  },
+  "dice_experiment_rs422_protocol.md": {
+    "mtime": 1787076239.8197117,
+    "ast_hash": "83c8ddb7207d71b69e33804699e80a3b",
+    "semantic_hash": ""
+  },
+  "rs422_command_packet_format.md": {
+    "mtime": 1787072585.4526517,
+    "ast_hash": "cdf7585a0e7475226766f9b265059dcb",
+    "semantic_hash": ""
+  },
+  "tmp/vospi_pages.txt": {
+    "mtime": 1787073838.5862658,
+    "ast_hash": "6ace96e9971c93f0633d75c87d201b01",
+    "semantic_hash": ""
+  },
+  "Lepton Engineering Datasheet Rev 400 (500-0659-00-09).pdf": {
+    "mtime": 1787073422.0035038,
+    "ast_hash": "dbc7b3ae167f3357491dfeb49629b751",
+    "semantic_hash": ""
+  },
+  "tmp/pdfs/lepton_rev400.pdf": {
+    "mtime": 1787071923.9775524,
+    "ast_hash": "dbc7b3ae167f3357491dfeb49629b751",
+    "semantic_hash": ""
+  },
+  "tmp/page21_0.png": {
+    "mtime": 1787075045.1801412,
+    "ast_hash": "246a72267b44c0e75ef13bec03dd9ac4",
+    "semantic_hash": ""
+  },
+  "tmp/page21_1.png": {
+    "mtime": 1787075045.232586,
+    "ast_hash": "2d9844f79ead9238cff70da82c929db2",
+    "semantic_hash": ""
+  },
+  "tmp/pdfs/lepton_power-21.png": {
+    "mtime": 1787071939.7338212,
+    "ast_hash": "635559b99c7c1d40da1f0d29a2a79dca",
+    "semantic_hash": ""
+  }
+}

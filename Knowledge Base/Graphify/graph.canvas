@@ -1,0 +1,4661 @@
+{
+  "nodes": [
+    {
+      "id": "g0",
+      "type": "group",
+      "label": "System Architecture and Specs",
+      "x": 0,
+      "y": 0,
+      "width": 1760,
+      "height": 1920,
+      "color": "1"
+    },
+    {
+      "id": "n_project_implementation_status_automated_verification",
+      "type": "file",
+      "file": "Automated Firmware Verification.md",
+      "x": 20,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_rs_485_multidrop_protocol_chunked_frame_transfer",
+      "type": "file",
+      "file": "Bounded Chunked Frame Transfer.md",
+      "x": 220,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_usb_interface_cdc_command_channel",
+      "type": "file",
+      "file": "CDC Shared Command and Telemetry Channel.md",
+      "x": 420,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_rs_485_multidrop_protocol_cobs_crc32c_framing",
+      "type": "file",
+      "file": "COBS and CRC-32C Wire Framing.md",
+      "x": 20,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_decision_log_durable_project_memory",
+      "type": "file",
+      "file": "D-001 Durable Project Memory.md",
+      "x": 220,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_decision_log_one_shared_command_model",
+      "type": "file",
+      "file": "D-003 One Shared Command Model.md",
+      "x": 420,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_decision_log_capture_never_blocks",
+      "type": "file",
+      "file": "D-006 Capture Never Blocks on Transport.md",
+      "x": 20,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_decision_log_data_only_usb",
+      "type": "file",
+      "file": "D-008 Data-Only USB Connector.md",
+      "x": 220,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_decision_log_dosimeter_nominal_conversion",
+      "type": "file",
+      "file": "D-010 Dosimeter Nominal Conversion.md",
+      "x": 420,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_knowledge_base_home_dosimeter_naming_correction",
+      "type": "file",
+      "file": "DOSI Means DOSIMETER_ADC.md",
+      "x": 20,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_usb_interface_data_only_self_powered_usb",
+      "type": "file",
+      "file": "Data-Only Self-Powered USB.md",
+      "x": 220,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_decision_log_decision_log",
+      "type": "file",
+      "file": "Decision Log.md",
+      "x": 420,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_requirements_dev_development_dependencies",
+      "type": "file",
+      "file": "Development Python Dependencies.md",
+      "x": 20,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_todo_documentation_maintenance",
+      "type": "file",
+      "file": "Documentation and Graphify Maintenance.md",
+      "x": 220,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_risks_and_bugs_dosimeter_quantity_semantics",
+      "type": "file",
+      "file": "Dosimeter Dose versus Dose-Rate Ambiguity.md",
+      "x": 420,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_dosimeter_telemetry_dosimeter_telemetry",
+      "type": "file",
+      "file": "Dosimeter Telemetry Interface.md",
+      "x": 20,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_usb_interface_uvc_backpressure_policy",
+      "type": "file",
+      "file": "Drop-Oldest UVC Backpressure Policy.md",
+      "x": 220,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_implementation_status_implementation_status",
+      "type": "file",
+      "file": "Firmware Implementation and Test Status.md",
+      "x": 420,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_implementation_status_release_blockers",
+      "type": "file",
+      "file": "Firmware Release Blockers.md",
+      "x": 20,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_graphify_knowledge_graph",
+      "type": "file",
+      "file": "Generated Graphify Knowledge Graph.md",
+      "x": 220,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_todo_hardware_validation",
+      "type": "file",
+      "file": "Hardware Validation Workstream.md",
+      "x": 420,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_architecture_system_specification_v0_1_frame_broker",
+      "type": "file",
+      "file": "Immutable Frame Broker.md",
+      "x": 20,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_implementation_status_implemented_baseline",
+      "type": "file",
+      "file": "Implemented Firmware Baseline.md",
+      "x": 220,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_rs_485_multidrop_protocol_integrity_without_authentication",
+      "type": "file",
+      "file": "Integrity Without Cryptographic Authentication.md",
+      "x": 420,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_risks_and_bugs_clock_qualification",
+      "type": "file",
+      "file": "MAX7375 MCU and USB Clock Qualification.md",
+      "x": 20,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_rs_485_multidrop_protocol_bus_capacity",
+      "type": "file",
+      "file": "Multidrop Video Capacity Budget.md",
+      "x": 220,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_dosimeter_telemetry_frame_metadata_sample",
+      "type": "file",
+      "file": "Nearest Dosimeter Sample in Frame Metadata.md",
+      "x": 420,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_dosimeter_telemetry_nominal_conversion",
+      "type": "file",
+      "file": "Nominal 2.5 mV per rad Conversion.md",
+      "x": 20,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_risks_and_bugs_adm2582e_topology_unknown",
+      "type": "file",
+      "file": "P0 ADM2582E Topology Unknown.md",
+      "x": 220,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_knowledge_base_home_review_gate",
+      "type": "file",
+      "file": "P0 Hardware Review Gate.md",
+      "x": 420,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_todo_usb_control_phase",
+      "type": "file",
+      "file": "Phase 2 USB and Control.md",
+      "x": 20,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_todo_uvc_dosimeter_phase",
+      "type": "file",
+      "file": "Phase 4 UVC and Dosimeter.md",
+      "x": 220,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_requirements_dev_platformio",
+      "type": "file",
+      "file": "PlatformIO 6.1.19.md",
+      "x": 420,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_build_and_test",
+      "type": "file",
+      "file": "PlatformIO Build and Native Test Workflow.md",
+      "x": 20,
+      "y": 960,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_todo_project_todo",
+      "type": "file",
+      "file": "Project TODO.md",
+      "x": 220,
+      "y": 960,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_usb_interface_uvc_y16_stream",
+      "type": "file",
+      "file": "Radiometric UVC Y16 Stream.md",
+      "x": 420,
+      "y": 960,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_risks_and_bugs_risk_register",
+      "type": "file",
+      "file": "Risks, Bugs, and Unresolved Hardware Issues.md",
+      "x": 20,
+      "y": 1040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_architecture_system_specification_v0_1_shared_command_model",
+      "type": "file",
+      "file": "Shared Command Model.md",
+      "x": 220,
+      "y": 1040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_architecture_system_specification_v0_1_runtime_services",
+      "type": "file",
+      "file": "Single-Ownership Runtime Services.md",
+      "x": 420,
+      "y": 1040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_architecture_system_specification_v0_1_static_memory_model",
+      "type": "file",
+      "file": "Static Memory and Explicit Buffer Ownership.md",
+      "x": 20,
+      "y": 1120,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_host_control",
+      "type": "file",
+      "file": "Thermal Camera Host CLI Workflow.md",
+      "x": 220,
+      "y": 1120,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_architecture_system_specification_v0_1_system_specification",
+      "type": "file",
+      "file": "Thermal Camera System Specification v0.2.md",
+      "x": 420,
+      "y": 1120,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_knowledge_base_home_project_memory",
+      "type": "file",
+      "file": "ThermalCamDev Project Memory.md",
+      "x": 20,
+      "y": 1200,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_readme_thermalcamdev",
+      "type": "file",
+      "file": "ThermalCamDev README.md",
+      "x": 220,
+      "y": 1200,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_dosimeter_telemetry_adc_acquisition",
+      "type": "file",
+      "file": "Timer-Triggered ADC DMA Acquisition.md",
+      "x": 420,
+      "y": 1200,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_architecture_system_specification_v0_1_nonblocking_capture",
+      "type": "file",
+      "file": "Transport-Independent Nonblocking Capture.md",
+      "x": 20,
+      "y": 1280,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_usb_interface_endpoint_fifo_layout",
+      "type": "file",
+      "file": "USB Endpoint and FIFO Layout.md",
+      "x": 220,
+      "y": 1280,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_usb_interface_usb_interface",
+      "type": "file",
+      "file": "USB Interface.md",
+      "x": 420,
+      "y": 1280,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_risks_and_bugs_uvc_host_compatibility",
+      "type": "file",
+      "file": "UVC Y16 Host Compatibility Risk.md",
+      "x": 20,
+      "y": 1360,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_usb_interface_composite_device",
+      "type": "file",
+      "file": "UVC and CDC ACM Composite Device.md",
+      "x": 220,
+      "y": 1360,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_rs_485_multidrop_protocol_operation_set",
+      "type": "file",
+      "file": "Version 1 Command Operation Set.md",
+      "x": 420,
+      "y": 1360,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_dosimeter_telemetry_calibration_model",
+      "type": "file",
+      "file": "Versioned Two-Point Dosimeter Calibration.md",
+      "x": 20,
+      "y": 1440,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_requirements_dev_pyserial",
+      "type": "file",
+      "file": "pySerial 3.5.md",
+      "x": 220,
+      "y": 1440,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g1",
+      "type": "group",
+      "label": "Board Clock and Peripherals",
+      "x": 1840,
+      "y": 0,
+      "width": 1540,
+      "height": 1420,
+      "color": "2"
+    },
+    {
+      "id": "n_src_board_board_c_adc_handletypedef",
+      "type": "file",
+      "file": "ADC_HandleTypeDef.md",
+      "x": 1860,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_busfault_handler",
+      "type": "file",
+      "file": "BusFault_Handler().md",
+      "x": 2060,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_dma1_stream3_irqhandler",
+      "type": "file",
+      "file": "DMA1_Stream3_IRQHandler().md",
+      "x": 2260,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_dma1_stream5_irqhandler",
+      "type": "file",
+      "file": "DMA1_Stream5_IRQHandler().md",
+      "x": 1860,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_dma1_stream6_irqhandler",
+      "type": "file",
+      "file": "DMA1_Stream6_IRQHandler().md",
+      "x": 2060,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_dma2_stream0_irqhandler",
+      "type": "file",
+      "file": "DMA2_Stream0_IRQHandler().md",
+      "x": 2260,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_debugmon_handler",
+      "type": "file",
+      "file": "DebugMon_Handler().md",
+      "x": 1860,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_exti15_10_irqhandler",
+      "type": "file",
+      "file": "EXTI15_10_IRQHandler().md",
+      "x": 2060,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_hal_adc_mspinit",
+      "type": "file",
+      "file": "HAL_ADC_MspInit().md",
+      "x": 2260,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_hal_i2c_mspinit",
+      "type": "file",
+      "file": "HAL_I2C_MspInit().md",
+      "x": 1860,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_hal_spi_mspinit",
+      "type": "file",
+      "file": "HAL_SPI_MspInit().md",
+      "x": 2060,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_hal_tim_base_mspinit",
+      "type": "file",
+      "file": "HAL_TIM_Base_MspInit().md",
+      "x": 2260,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_hal_uart_mspinit",
+      "type": "file",
+      "file": "HAL_UART_MspInit().md",
+      "x": 1860,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_hardfault_handler",
+      "type": "file",
+      "file": "HardFault_Handler().md",
+      "x": 2060,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_i2c_handletypedef",
+      "type": "file",
+      "file": "I2C_HandleTypeDef.md",
+      "x": 2260,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_memmanage_handler",
+      "type": "file",
+      "file": "MemManage_Handler().md",
+      "x": 1860,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_nmi_handler",
+      "type": "file",
+      "file": "NMI_Handler().md",
+      "x": 2060,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_otg_fs_irqhandler",
+      "type": "file",
+      "file": "OTG_FS_IRQHandler().md",
+      "x": 2260,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_pendsv_handler",
+      "type": "file",
+      "file": "PendSV_Handler().md",
+      "x": 1860,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_board_board_c_spi_handletypedef",
+      "type": "file",
+      "file": "SPI_HandleTypeDef.md",
+      "x": 2060,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_svc_handler",
+      "type": "file",
+      "file": "SVC_Handler().md",
+      "x": 2260,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_systick_handler",
+      "type": "file",
+      "file": "SysTick_Handler().md",
+      "x": 1860,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tim_handletypedef",
+      "type": "file",
+      "file": "TIM_HandleTypeDef.md",
+      "x": 2060,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_board_board_c_uart_handletypedef",
+      "type": "file",
+      "file": "UART_HandleTypeDef.md",
+      "x": 2260,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_usart2_irqhandler",
+      "type": "file",
+      "file": "USART2_IRQHandler().md",
+      "x": 1860,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it_usagefault_handler",
+      "type": "file",
+      "file": "UsageFault_Handler().md",
+      "x": 2060,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_adc_timer_init",
+      "type": "file",
+      "file": "adc_timer_init().md",
+      "x": 2260,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board",
+      "type": "file",
+      "file": "board.c.md",
+      "x": 1860,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_board_clock_valid",
+      "type": "file",
+      "file": "board_clock_valid().md",
+      "x": 2060,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_board_fatal",
+      "type": "file",
+      "file": "board_fatal().md",
+      "x": 2260,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_board_init",
+      "type": "file",
+      "file": "board_init().md",
+      "x": 1860,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_dma_init",
+      "type": "file",
+      "file": "dma_init().md",
+      "x": 2060,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_gpio_init",
+      "type": "file",
+      "file": "gpio_init().md",
+      "x": 2260,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_i2c_init",
+      "type": "file",
+      "file": "i2c_init().md",
+      "x": 1860,
+      "y": 960,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_spi_init",
+      "type": "file",
+      "file": "spi_init().md",
+      "x": 2060,
+      "y": 960,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_stm32f4xx_it",
+      "type": "file",
+      "file": "stm32f4xx_it.c.md",
+      "x": 2260,
+      "y": 960,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_system_clock_config",
+      "type": "file",
+      "file": "system_clock_config().md",
+      "x": 1860,
+      "y": 1040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_uart_init",
+      "type": "file",
+      "file": "uart_init().md",
+      "x": 2060,
+      "y": 1040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g2",
+      "type": "group",
+      "label": "Lepton Capture State Machine",
+      "x": 3460,
+      "y": 0,
+      "width": 1320,
+      "height": 1220,
+      "color": "3"
+    },
+    {
+      "id": "n_lepton_lepton_capture_hal_gpio_exti_callback",
+      "type": "file",
+      "file": "HAL_GPIO_EXTI_Callback().md",
+      "x": 3480,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_hal_spi_errorcallback",
+      "type": "file",
+      "file": "HAL_SPI_ErrorCallback().md",
+      "x": 3680,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_hal_spi_rxcpltcallback",
+      "type": "file",
+      "file": "HAL_SPI_RxCpltCallback().md",
+      "x": 3880,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_lepton_lepton_capture_c_spi_handletypedef",
+      "type": "file",
+      "file": "SPI_HandleTypeDef_1.md",
+      "x": 3480,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_board_lepton_cs",
+      "type": "file",
+      "file": "board_lepton_cs().md",
+      "x": 3680,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_board_lepton_power",
+      "type": "file",
+      "file": "board_lepton_power().md",
+      "x": 3880,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_board_lepton_reset",
+      "type": "file",
+      "file": "board_lepton_reset().md",
+      "x": 3480,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_enter_state",
+      "type": "file",
+      "file": "enter_state().md",
+      "x": 3680,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_health",
+      "type": "file",
+      "file": "health.c.md",
+      "x": 3880,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_health_health_increment",
+      "type": "file",
+      "file": "health_increment().md",
+      "x": 3480,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture",
+      "type": "file",
+      "file": "lepton_capture.c.md",
+      "x": 3680,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_lepton_capture_get_status",
+      "type": "file",
+      "file": "lepton_capture_get_status().md",
+      "x": 3880,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_lepton_capture_init",
+      "type": "file",
+      "file": "lepton_capture_init().md",
+      "x": 3480,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_lepton_capture_run_ffc",
+      "type": "file",
+      "file": "lepton_capture_run_ffc().md",
+      "x": 3680,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_capture_status_t",
+      "type": "file",
+      "file": "lepton_capture_status_t.md",
+      "x": 3880,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_lepton_capture_task",
+      "type": "file",
+      "file": "lepton_capture_task().md",
+      "x": 3480,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci",
+      "type": "file",
+      "file": "lepton_cci.c.md",
+      "x": 3680,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_lepton_cci_booted",
+      "type": "file",
+      "file": "lepton_cci_booted().md",
+      "x": 3880,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_lepton_cci_configure_radiometric",
+      "type": "file",
+      "file": "lepton_cci_configure_radiometric().md",
+      "x": 3480,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_lepton_cci_get",
+      "type": "file",
+      "file": "lepton_cci_get().md",
+      "x": 3680,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_lepton_cci_read_register",
+      "type": "file",
+      "file": "lepton_cci_read_register().md",
+      "x": 3880,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_lepton_cci_run",
+      "type": "file",
+      "file": "lepton_cci_run().md",
+      "x": 3480,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_lepton_cci_set",
+      "type": "file",
+      "file": "lepton_cci_set().md",
+      "x": 3680,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_lepton_cci_write_register",
+      "type": "file",
+      "file": "lepton_cci_write_register().md",
+      "x": 3880,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_state_t",
+      "type": "file",
+      "file": "lepton_state_t.md",
+      "x": 3480,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_process_segments",
+      "type": "file",
+      "file": "process_segments().md",
+      "x": 3680,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_read_bytes",
+      "type": "file",
+      "file": "read_bytes().md",
+      "x": 3880,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_start_segment_dma",
+      "type": "file",
+      "file": "start_segment_dma().md",
+      "x": 3480,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_stop_spi_and_resync",
+      "type": "file",
+      "file": "stop_spi_and_resync().md",
+      "x": 3680,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_wait_ready",
+      "type": "file",
+      "file": "wait_ready().md",
+      "x": 3880,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_words_from_camera",
+      "type": "file",
+      "file": "words_from_camera().md",
+      "x": 3480,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_words_to_camera",
+      "type": "file",
+      "file": "words_to_camera().md",
+      "x": 3680,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_cci_write_bytes",
+      "type": "file",
+      "file": "write_bytes().md",
+      "x": 3880,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g3",
+      "type": "group",
+      "label": "RS-485 Driver",
+      "x": 4860,
+      "y": 0,
+      "width": 1320,
+      "height": 1220,
+      "color": "4"
+    },
+    {
+      "id": "n_drivers_rs485_hal_uart_errorcallback",
+      "type": "file",
+      "file": "HAL_UART_ErrorCallback().md",
+      "x": 4880,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_rs485_hal_uart_txcpltcallback",
+      "type": "file",
+      "file": "HAL_UART_TxCpltCallback().md",
+      "x": 5080,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_drivers_rs485_c_uart_handletypedef",
+      "type": "file",
+      "file": "UART_HandleTypeDef_1.md",
+      "x": 5280,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_rs485_begin_transmit",
+      "type": "file",
+      "file": "begin_transmit().md",
+      "x": 4880,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_board_rs485_de",
+      "type": "file",
+      "file": "board_rs485_de().md",
+      "x": 5080,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_cdc_if_cdc_control",
+      "type": "file",
+      "file": "cdc_control().md",
+      "x": 5280,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_cdc_if_cdc_deinit",
+      "type": "file",
+      "file": "cdc_deinit().md",
+      "x": 4880,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_cdc_if_cdc_init",
+      "type": "file",
+      "file": "cdc_init().md",
+      "x": 5080,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_cdc_if_cdc_receive",
+      "type": "file",
+      "file": "cdc_receive().md",
+      "x": 5280,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_cdc_if_cdc_transmit_complete",
+      "type": "file",
+      "file": "cdc_transmit_complete().md",
+      "x": 4880,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_rs485_handle_message",
+      "type": "file",
+      "file": "handle_message().md",
+      "x": 5080,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_rs485",
+      "type": "file",
+      "file": "rs485.c.md",
+      "x": 5280,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_rs485_rs485_get_status",
+      "type": "file",
+      "file": "rs485_get_status().md",
+      "x": 4880,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_rs485_rs485_init",
+      "type": "file",
+      "file": "rs485_init().md",
+      "x": 5080,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_rs485_rs485_set_address",
+      "type": "file",
+      "file": "rs485_set_address().md",
+      "x": 5280,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_rs485_status_t",
+      "type": "file",
+      "file": "rs485_status_t.md",
+      "x": 4880,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_rs485_rs485_task",
+      "type": "file",
+      "file": "rs485_task().md",
+      "x": 5080,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_core_test_main_test_wire_round_trip_and_crc_rejection",
+      "type": "file",
+      "file": "test_wire_round_trip_and_crc_rejection().md",
+      "x": 5280,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_core_test_main_test_wire_stream_delimiter",
+      "type": "file",
+      "file": "test_wire_stream_delimiter().md",
+      "x": 4880,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_cdc_if_transmit_response",
+      "type": "file",
+      "file": "transmit_response().md",
+      "x": 5080,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_cdc_if",
+      "type": "file",
+      "file": "usb_cdc_if.c.md",
+      "x": 5280,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_cdc_if_usb_cdc_task",
+      "type": "file",
+      "file": "usb_cdc_task().md",
+      "x": 4880,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_wire_protocol_wire_decode",
+      "type": "file",
+      "file": "wire_decode().md",
+      "x": 5080,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_wire_protocol_wire_encode",
+      "type": "file",
+      "file": "wire_encode().md",
+      "x": 5280,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_wire_protocol_wire_get_u32",
+      "type": "file",
+      "file": "wire_get_u32().md",
+      "x": 4880,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_drivers_rs485_c_wire_message_t",
+      "type": "file",
+      "file": "wire_message_t.md",
+      "x": 5080,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_protocol_wire_protocol_c_wire_message_t",
+      "type": "file",
+      "file": "wire_message_t_2.md",
+      "x": 5280,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_usb_usb_cdc_if_c_wire_message_t",
+      "type": "file",
+      "file": "wire_message_t_3.md",
+      "x": 4880,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_protocol_wire_protocol_c_protocol_wire_protocol",
+      "type": "file",
+      "file": "wire_protocol.c.md",
+      "x": 5080,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_wire_protocol_wire_put_u32",
+      "type": "file",
+      "file": "wire_put_u32().md",
+      "x": 5280,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_wire_protocol_wire_stream_init",
+      "type": "file",
+      "file": "wire_stream_init().md",
+      "x": 4880,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_wire_protocol_wire_stream_push",
+      "type": "file",
+      "file": "wire_stream_push().md",
+      "x": 5080,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_wire_stream_t",
+      "type": "file",
+      "file": "wire_stream_t.md",
+      "x": 5280,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g4",
+      "type": "group",
+      "label": "USB Device Low-Level",
+      "x": 6260,
+      "y": 0,
+      "width": 1320,
+      "height": 1220,
+      "color": "5"
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_connectcallback",
+      "type": "file",
+      "file": "HAL_PCD_ConnectCallback().md",
+      "x": 6280,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_datainstagecallback",
+      "type": "file",
+      "file": "HAL_PCD_DataInStageCallback().md",
+      "x": 6480,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_dataoutstagecallback",
+      "type": "file",
+      "file": "HAL_PCD_DataOutStageCallback().md",
+      "x": 6680,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_disconnectcallback",
+      "type": "file",
+      "file": "HAL_PCD_DisconnectCallback().md",
+      "x": 6280,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_isoinincompletecallback",
+      "type": "file",
+      "file": "HAL_PCD_ISOINIncompleteCallback().md",
+      "x": 6480,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_isooutincompletecallback",
+      "type": "file",
+      "file": "HAL_PCD_ISOOUTIncompleteCallback().md",
+      "x": 6680,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_mspdeinit",
+      "type": "file",
+      "file": "HAL_PCD_MspDeInit().md",
+      "x": 6280,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_mspinit",
+      "type": "file",
+      "file": "HAL_PCD_MspInit().md",
+      "x": 6480,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_resetcallback",
+      "type": "file",
+      "file": "HAL_PCD_ResetCallback().md",
+      "x": 6680,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_resumecallback",
+      "type": "file",
+      "file": "HAL_PCD_ResumeCallback().md",
+      "x": 6280,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_sofcallback",
+      "type": "file",
+      "file": "HAL_PCD_SOFCallback().md",
+      "x": 6480,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_setupstagecallback",
+      "type": "file",
+      "file": "HAL_PCD_SetupStageCallback().md",
+      "x": 6680,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_hal_pcd_suspendcallback",
+      "type": "file",
+      "file": "HAL_PCD_SuspendCallback().md",
+      "x": 6280,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_pcd_handletypedef",
+      "type": "file",
+      "file": "PCD_HandleTypeDef.md",
+      "x": 6480,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usbd_handletypedef",
+      "type": "file",
+      "file": "USBD_HandleTypeDef.md",
+      "x": 6680,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_clearstallep",
+      "type": "file",
+      "file": "USBD_LL_ClearStallEP().md",
+      "x": 6280,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_closeep",
+      "type": "file",
+      "file": "USBD_LL_CloseEP().md",
+      "x": 6480,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_deinit",
+      "type": "file",
+      "file": "USBD_LL_DeInit().md",
+      "x": 6680,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_delay",
+      "type": "file",
+      "file": "USBD_LL_Delay().md",
+      "x": 6280,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_flushep",
+      "type": "file",
+      "file": "USBD_LL_FlushEP().md",
+      "x": 6480,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_getrxdatasize",
+      "type": "file",
+      "file": "USBD_LL_GetRxDataSize().md",
+      "x": 6680,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_init",
+      "type": "file",
+      "file": "USBD_LL_Init().md",
+      "x": 6280,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_isstallep",
+      "type": "file",
+      "file": "USBD_LL_IsStallEP().md",
+      "x": 6480,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_openep",
+      "type": "file",
+      "file": "USBD_LL_OpenEP().md",
+      "x": 6680,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_preparereceive",
+      "type": "file",
+      "file": "USBD_LL_PrepareReceive().md",
+      "x": 6280,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_setusbaddress",
+      "type": "file",
+      "file": "USBD_LL_SetUSBAddress().md",
+      "x": 6480,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_stallep",
+      "type": "file",
+      "file": "USBD_LL_StallEP().md",
+      "x": 6680,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_start",
+      "type": "file",
+      "file": "USBD_LL_Start().md",
+      "x": 6280,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_stop",
+      "type": "file",
+      "file": "USBD_LL_Stop().md",
+      "x": 6480,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf_usbd_ll_transmit",
+      "type": "file",
+      "file": "USBD_LL_Transmit().md",
+      "x": 6680,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usbd_statustypedef",
+      "type": "file",
+      "file": "USBD_StatusTypeDef.md",
+      "x": 6280,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_conf",
+      "type": "file",
+      "file": "usbd_conf.c.md",
+      "x": 6480,
+      "y": 880,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g5",
+      "type": "group",
+      "label": "Hardware Pin and Bus Design",
+      "x": 7660,
+      "y": 0,
+      "width": 1320,
+      "height": 1120,
+      "color": "6"
+    },
+    {
+      "id": "n_project_risks_and_bugs_de_pullup_hazard",
+      "type": "file",
+      "file": "ADM2582E DE Pull-up Contention Hazard.md",
+      "x": 7680,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_sources_primary_sources_adm2582e_datasheet",
+      "type": "file",
+      "file": "ADM2582E and ADM2587E Datasheet Rev H.md",
+      "x": 7880,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_hardware_pin_map_clock_architecture",
+      "type": "file",
+      "file": "Accepted MCU Clock Architecture.md",
+      "x": 8080,
+      "y": 80,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_decision_log_field_bus_implemented_last",
+      "type": "file",
+      "file": "D-005 Field Bus Implemented Last.md",
+      "x": 7680,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_decision_log_independent_lepton_clock",
+      "type": "file",
+      "file": "D-007 Independent Lepton Master Clock.md",
+      "x": 7880,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_implementation_status_ft2232_driver_blocker",
+      "type": "file",
+      "file": "FT2232H Channel A Driver Blocker.md",
+      "x": 8080,
+      "y": 160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_hardware_pin_map_ft2232h_swd_mapping",
+      "type": "file",
+      "file": "FT2232H Channel A SWD Mapping.md",
+      "x": 7680,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_rs_485_multidrop_protocol_electrical_topology",
+      "type": "file",
+      "file": "Four-Wire ADM2582E Multidrop Topology.md",
+      "x": 7880,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_rs_485_multidrop_protocol_four_wire_multidrop_rs_485_protocol",
+      "type": "file",
+      "file": "Four-Wire Multidrop RS-485 Protocol.md",
+      "x": 8080,
+      "y": 240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_knowledge_base_home_rs485_naming_correction",
+      "type": "file",
+      "file": "Four-Wire Multidrop RS-485 Terminology.md",
+      "x": 7680,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_hardware_pin_map_safe_reset_states",
+      "type": "file",
+      "file": "Hardware-Safe Reset States.md",
+      "x": 7880,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_sources_primary_sources_lepton_product_datasheet",
+      "type": "file",
+      "file": "Lepton Product Datasheet Rev 400.md",
+      "x": 8080,
+      "y": 320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_risks_and_bugs_lepton_electrical_validation",
+      "type": "file",
+      "file": "Lepton Rails, Pull-ups, and Level Validation.md",
+      "x": 7680,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_sources_primary_sources_lepton_software_idd",
+      "type": "file",
+      "file": "Lepton Software IDD Rev 303.md",
+      "x": 7880,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_hardware_pin_map_lepton_vddio_domain",
+      "type": "file",
+      "file": "Lepton VDDIO Electrical Domain.md",
+      "x": 8080,
+      "y": 400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_sources_primary_sources_max7375_datasheet",
+      "type": "file",
+      "file": "MAX7375 Datasheet.md",
+      "x": 7680,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_rs_485_multidrop_protocol_master_centric_arbitration",
+      "type": "file",
+      "file": "Master-Centric Bus Arbitration.md",
+      "x": 7880,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_todo_mcu_debug_phase",
+      "type": "file",
+      "file": "Phase 1 MCU and Debug.md",
+      "x": 8080,
+      "y": 480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_todo_multidrop_phase",
+      "type": "file",
+      "file": "Phase 5 Multidrop Field Bus.md",
+      "x": 7680,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_sources_primary_sources_primary_sources",
+      "type": "file",
+      "file": "Primary Sources.md",
+      "x": 7880,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_implementation_status_hardware_in_loop_sequence",
+      "type": "file",
+      "file": "Required Hardware-in-the-Loop Sequence.md",
+      "x": 8080,
+      "y": 560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_sources_primary_sources_stm32f4_hal_driver",
+      "type": "file",
+      "file": "STM32F4 HAL Driver.md",
+      "x": 7680,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_sources_primary_sources_stm32f412_reference_manual",
+      "type": "file",
+      "file": "STM32F412 Reference Manual RM0402.md",
+      "x": 7880,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_hardware_pin_map_pin_map",
+      "type": "file",
+      "file": "STM32F412CGU6 Pin Map.md",
+      "x": 8080,
+      "y": 640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_sources_primary_sources_stm32f412_datasheet",
+      "type": "file",
+      "file": "STM32F412xExG Datasheet DS11139 Rev 9.md",
+      "x": 7680,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_sources_primary_sources_lepton_technical_documentation",
+      "type": "file",
+      "file": "Teledyne FLIR Lepton Technical Documentation.md",
+      "x": 7880,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_rs_485_multidrop_protocol_uid_discovery",
+      "type": "file",
+      "file": "UID-Spread Broadcast Discovery.md",
+      "x": 8080,
+      "y": 720,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_rs_485_multidrop_protocol_de_timing",
+      "type": "file",
+      "file": "USART2 Driver-Enable Timing.md",
+      "x": 7680,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_hardware_pin_map_field_bus_pin_assignment",
+      "type": "file",
+      "file": "USART2 and PB7 Field-Bus Pin Assignment.md",
+      "x": 7880,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_sources_primary_sources_verified_hardware_facts",
+      "type": "file",
+      "file": "Verified Hardware and Protocol Facts for v0.2.md",
+      "x": 8080,
+      "y": 800,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g6",
+      "type": "group",
+      "label": "Command Dispatcher",
+      "x": 0,
+      "y": 2000,
+      "width": 1100,
+      "height": 920,
+      "color": "1"
+    },
+    {
+      "id": "n_protocol_command_dispatch_append_u32",
+      "type": "file",
+      "file": "append_u32().md",
+      "x": 20,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_assign_bus_address",
+      "type": "file",
+      "file": "assign_bus_address().md",
+      "x": 220,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_begin_response",
+      "type": "file",
+      "file": "begin_response().md",
+      "x": 420,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_board_unique_id_word",
+      "type": "file",
+      "file": "board_unique_id_word().md",
+      "x": 20,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_cci_get",
+      "type": "file",
+      "file": "cci_get().md",
+      "x": 220,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_cci_run",
+      "type": "file",
+      "file": "cci_run().md",
+      "x": 420,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_cci_set",
+      "type": "file",
+      "file": "cci_set().md",
+      "x": 20,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_command_dispatch",
+      "type": "file",
+      "file": "command_dispatch().md",
+      "x": 220,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch",
+      "type": "file",
+      "file": "command_dispatch.c.md",
+      "x": 420,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_dosimeter_status",
+      "type": "file",
+      "file": "dosimeter_status().md",
+      "x": 20,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_frame_chunk",
+      "type": "file",
+      "file": "frame_chunk().md",
+      "x": 220,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_get_health",
+      "type": "file",
+      "file": "get_health().md",
+      "x": 420,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_get_info",
+      "type": "file",
+      "file": "get_info().md",
+      "x": 20,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_get_lepton_status",
+      "type": "file",
+      "file": "get_lepton_status().md",
+      "x": 220,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_lepton_capture_lepton_capture_latest_frame",
+      "type": "file",
+      "file": "lepton_capture_latest_frame().md",
+      "x": 420,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_register_read",
+      "type": "file",
+      "file": "register_read().md",
+      "x": 20,
+      "y": 2480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_register_write",
+      "type": "file",
+      "file": "register_write().md",
+      "x": 220,
+      "y": 2480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_set_result",
+      "type": "file",
+      "file": "set_result().md",
+      "x": 420,
+      "y": 2480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_stream_status",
+      "type": "file",
+      "file": "stream_status().md",
+      "x": 20,
+      "y": 2560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_wire_protocol_wire_get_u16",
+      "type": "file",
+      "file": "wire_get_u16().md",
+      "x": 220,
+      "y": 2560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_protocol_command_dispatch_c_wire_message_t",
+      "type": "file",
+      "file": "wire_message_t_1.md",
+      "x": 420,
+      "y": 2560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_wire_protocol_wire_put_u16",
+      "type": "file",
+      "file": "wire_put_u16().md",
+      "x": 20,
+      "y": 2640,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g7",
+      "type": "group",
+      "label": "Dosimeter ADC",
+      "x": 1840,
+      "y": 2000,
+      "width": 1100,
+      "height": 720,
+      "color": "2"
+    },
+    {
+      "id": "n_src_drivers_dosimeter_c_adc_handletypedef",
+      "type": "file",
+      "file": "ADC_HandleTypeDef_1.md",
+      "x": 1860,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_dosimeter_hal_adc_convcpltcallback",
+      "type": "file",
+      "file": "HAL_ADC_ConvCpltCallback().md",
+      "x": 2060,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_dosimeter_hal_adc_convhalfcpltcallback",
+      "type": "file",
+      "file": "HAL_ADC_ConvHalfCpltCallback().md",
+      "x": 2260,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_board_board_board_reset_cause",
+      "type": "file",
+      "file": "board_reset_cause().md",
+      "x": 1860,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_command_dispatch_command_dispatch_init",
+      "type": "file",
+      "file": "command_dispatch_init().md",
+      "x": 2060,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_dosimeter",
+      "type": "file",
+      "file": "dosimeter.c.md",
+      "x": 2260,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_dosimeter_dosimeter_get_snapshot",
+      "type": "file",
+      "file": "dosimeter_get_snapshot().md",
+      "x": 1860,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_dosimeter_dosimeter_init",
+      "type": "file",
+      "file": "dosimeter_init().md",
+      "x": 2060,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_dosimeter_snapshot_t",
+      "type": "file",
+      "file": "dosimeter_snapshot_t.md",
+      "x": 2260,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_dosimeter_dosimeter_task",
+      "type": "file",
+      "file": "dosimeter_task().md",
+      "x": 1860,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_dosimeter_integer_sqrt",
+      "type": "file",
+      "file": "integer_sqrt().md",
+      "x": 2060,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_main_main",
+      "type": "file",
+      "file": "main().md",
+      "x": 2260,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_src_main",
+      "type": "file",
+      "file": "main.c.md",
+      "x": 1860,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_drivers_dosimeter_process_half",
+      "type": "file",
+      "file": "process_half().md",
+      "x": 2060,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_device",
+      "type": "file",
+      "file": "usb_device.c.md",
+      "x": 2260,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_device_usb_device_configured",
+      "type": "file",
+      "file": "usb_device_configured().md",
+      "x": 1860,
+      "y": 2480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_device_usb_device_init",
+      "type": "file",
+      "file": "usb_device_init().md",
+      "x": 2060,
+      "y": 2480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_device_usb_device_task",
+      "type": "file",
+      "file": "usb_device_task().md",
+      "x": 2260,
+      "y": 2480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g8",
+      "type": "group",
+      "label": "VoSPI and CRC",
+      "x": 3460,
+      "y": 2000,
+      "width": 1100,
+      "height": 720,
+      "color": "3"
+    },
+    {
+      "id": "n_src_protocol_crc_c_protocol_crc",
+      "type": "file",
+      "file": "crc.c.md",
+      "x": 3480,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_crc_crc16_ccitt",
+      "type": "file",
+      "file": "crc16_ccitt().md",
+      "x": 3680,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_crc_crc32c",
+      "type": "file",
+      "file": "crc32c().md",
+      "x": 3880,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_core_test_main_main",
+      "type": "file",
+      "file": "main()_1.md",
+      "x": 3480,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_core_test_main_make_segment",
+      "type": "file",
+      "file": "make_segment().md",
+      "x": 3680,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_vospi_parser_packet_is_discard",
+      "type": "file",
+      "file": "packet_is_discard().md",
+      "x": 3880,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_core_test_main_test_cobs_round_trip",
+      "type": "file",
+      "file": "test_cobs_round_trip().md",
+      "x": 3480,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_core_test_main_test_crc_known_vectors",
+      "type": "file",
+      "file": "test_crc_known_vectors().md",
+      "x": 3680,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_core_test_main",
+      "type": "file",
+      "file": "test_main.c.md",
+      "x": 3880,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_core_test_main_test_vospi_assembles_four_segments",
+      "type": "file",
+      "file": "test_vospi_assembles_four_segments().md",
+      "x": 3480,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_test_core_test_main_test_vospi_rejects_bad_crc",
+      "type": "file",
+      "file": "test_vospi_rejects_bad_crc().md",
+      "x": 3680,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_vospi_parser_vospi_latest_frame",
+      "type": "file",
+      "file": "vospi_latest_frame().md",
+      "x": 3880,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_vospi_parser_vospi_packet_crc",
+      "type": "file",
+      "file": "vospi_packet_crc().md",
+      "x": 3480,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_vospi_parser_vospi_parse_segment",
+      "type": "file",
+      "file": "vospi_parse_segment().md",
+      "x": 3680,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_vospi_parser",
+      "type": "file",
+      "file": "vospi_parser.c.md",
+      "x": 3880,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_lepton_vospi_parser_vospi_parser_init",
+      "type": "file",
+      "file": "vospi_parser_init().md",
+      "x": 3480,
+      "y": 2480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_vospi_parser_t",
+      "type": "file",
+      "file": "vospi_parser_t.md",
+      "x": 3680,
+      "y": 2480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_vospi_result_t",
+      "type": "file",
+      "file": "vospi_result_t.md",
+      "x": 3880,
+      "y": 2480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g9",
+      "type": "group",
+      "label": "Host CLI and Wire Protocol",
+      "x": 4860,
+      "y": 2000,
+      "width": 880,
+      "height": 720,
+      "color": "4"
+    },
+    {
+      "id": "n_tools_thermalcam_cli_cameralink_init",
+      "type": "file",
+      "file": ".__init__().md",
+      "x": 4880,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_cameralink_close",
+      "type": "file",
+      "file": ".close().md",
+      "x": 5080,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_cameralink_request",
+      "type": "file",
+      "file": ".request().md",
+      "x": 5280,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_cameralink",
+      "type": "file",
+      "file": "CameraLink.md",
+      "x": 4880,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_namespace",
+      "type": "file",
+      "file": "Namespace.md",
+      "x": 5080,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_path",
+      "type": "file",
+      "file": "Path.md",
+      "x": 5280,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_cobs_decode",
+      "type": "file",
+      "file": "cobs_decode()_1.md",
+      "x": 4880,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_cobs_encode",
+      "type": "file",
+      "file": "cobs_encode()_1.md",
+      "x": 5080,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_crc32c",
+      "type": "file",
+      "file": "crc32c()_1.md",
+      "x": 5280,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_decode_message",
+      "type": "file",
+      "file": "decode_message().md",
+      "x": 4880,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_encode_request",
+      "type": "file",
+      "file": "encode_request().md",
+      "x": 5080,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_parse_args",
+      "type": "file",
+      "file": "parse_args().md",
+      "x": 5280,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_print_words",
+      "type": "file",
+      "file": "print_words().md",
+      "x": 4880,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_run",
+      "type": "file",
+      "file": "run().md",
+      "x": 5080,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli_save_frame",
+      "type": "file",
+      "file": "save_frame().md",
+      "x": 5280,
+      "y": 2400,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_tools_thermalcam_cli",
+      "type": "file",
+      "file": "thermalcam_cli.py.md",
+      "x": 4880,
+      "y": 2480,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g10",
+      "type": "group",
+      "label": "USB Descriptors",
+      "x": 6260,
+      "y": 2000,
+      "width": 880,
+      "height": 520,
+      "color": "5"
+    },
+    {
+      "id": "n_usbd_speedtypedef",
+      "type": "file",
+      "file": "USBD_SpeedTypeDef.md",
+      "x": 6280,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_desc_config_descriptor",
+      "type": "file",
+      "file": "config_descriptor().md",
+      "x": 6480,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_desc_device_descriptor",
+      "type": "file",
+      "file": "device_descriptor().md",
+      "x": 6680,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_desc_interface_descriptor",
+      "type": "file",
+      "file": "interface_descriptor().md",
+      "x": 6280,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_desc_lang_descriptor",
+      "type": "file",
+      "file": "lang_descriptor().md",
+      "x": 6480,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_desc_manufacturer_descriptor",
+      "type": "file",
+      "file": "manufacturer_descriptor().md",
+      "x": 6680,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_desc_product_descriptor",
+      "type": "file",
+      "file": "product_descriptor().md",
+      "x": 6280,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_desc_serial_descriptor",
+      "type": "file",
+      "file": "serial_descriptor().md",
+      "x": 6480,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_desc_unicode_hex",
+      "type": "file",
+      "file": "unicode_hex().md",
+      "x": 6680,
+      "y": 2240,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usbd_desc",
+      "type": "file",
+      "file": "usbd_desc.c.md",
+      "x": 6280,
+      "y": 2320,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g11",
+      "type": "group",
+      "label": "FT2232 SWD Debug",
+      "x": 7660,
+      "y": 2000,
+      "width": 660,
+      "height": 400,
+      "color": "6"
+    },
+    {
+      "id": "n_ft2232_information_connect_under_reset",
+      "type": "file",
+      "file": "Connect Under Reset.md",
+      "x": 7680,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_ft2232_information_ft2232h_channel_a_swd",
+      "type": "file",
+      "file": "FT2232H Channel A SWD.md",
+      "x": 7880,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_ft2232_information_ft2232h_channel_b_uart",
+      "type": "file",
+      "file": "FT2232H Channel B UART.md",
+      "x": 8080,
+      "y": 2080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_ft2232_information_ft2232h_swd_debug_programming_interface",
+      "type": "file",
+      "file": "FT2232H SWD Debug  Programming Interface.md",
+      "x": 7680,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_ft2232_information_ft2232h_swdio_combiner",
+      "type": "file",
+      "file": "FT2232H SWDIO Combining Circuit.md",
+      "x": 7880,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_ft2232_information_openocd_ftdi_mpsse_workflow",
+      "type": "file",
+      "file": "OpenOCD FTDIMPSSE Workflow.md",
+      "x": 8080,
+      "y": 2160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g12",
+      "type": "group",
+      "label": "Lepton Interface Contracts",
+      "x": 0,
+      "y": 3000,
+      "width": 660,
+      "height": 400,
+      "color": "1"
+    },
+    {
+      "id": "n_interfaces_lepton_interface_lepton_3_1r_interface",
+      "type": "file",
+      "file": "Lepton 3.1R Interface.md",
+      "x": 20,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_lepton_interface_cci_contract",
+      "type": "file",
+      "file": "Lepton CCI Contract.md",
+      "x": 220,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_lepton_interface_lepton_electrical_contract",
+      "type": "file",
+      "file": "Lepton Electrical Contract.md",
+      "x": 420,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_lepton_interface_vospi_contract",
+      "type": "file",
+      "file": "Lepton VoSPI Contract.md",
+      "x": 20,
+      "y": 3160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_interfaces_lepton_interface_frame_representation",
+      "type": "file",
+      "file": "Thermal Frame Representation.md",
+      "x": 220,
+      "y": 3160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g13",
+      "type": "group",
+      "label": "UVC Frame Publisher",
+      "x": 1840,
+      "y": 3000,
+      "width": 660,
+      "height": 400,
+      "color": "2"
+    },
+    {
+      "id": "n_usb_usb_video_if",
+      "type": "file",
+      "file": "usb_video_if.c.md",
+      "x": 1860,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_video_if_video_control",
+      "type": "file",
+      "file": "video_control().md",
+      "x": 2060,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_video_if_video_data",
+      "type": "file",
+      "file": "video_data().md",
+      "x": 2260,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_video_if_video_deinit",
+      "type": "file",
+      "file": "video_deinit().md",
+      "x": 1860,
+      "y": 3160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_usb_usb_video_if_video_init",
+      "type": "file",
+      "file": "video_init().md",
+      "x": 2060,
+      "y": 3160,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g14",
+      "type": "group",
+      "label": "Camera Bring-Up and Health",
+      "x": 3460,
+      "y": 3000,
+      "width": 600,
+      "height": 400,
+      "color": "3"
+    },
+    {
+      "id": "n_architecture_system_specification_v0_1_fault_observability",
+      "type": "file",
+      "file": "Fault Observability and Recovery Counters.md",
+      "x": 3480,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_architecture_system_specification_v0_1_camera_bringup",
+      "type": "file",
+      "file": "Lepton Camera Bring-up Sequence.md",
+      "x": 3680,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_project_todo_lepton_capture_phase",
+      "type": "file",
+      "file": "Phase 3 Lepton CCI and VoSPI.md",
+      "x": 3880,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g15",
+      "type": "group",
+      "label": "COBS Codec",
+      "x": 4860,
+      "y": 3000,
+      "width": 600,
+      "height": 400,
+      "color": "4"
+    },
+    {
+      "id": "n_src_protocol_cobs_c_protocol_cobs",
+      "type": "file",
+      "file": "cobs.c.md",
+      "x": 4880,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_cobs_cobs_decode",
+      "type": "file",
+      "file": "cobs_decode().md",
+      "x": 5080,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_protocol_cobs_cobs_encode",
+      "type": "file",
+      "file": "cobs_encode().md",
+      "x": 5280,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g16",
+      "type": "group",
+      "label": "Application and VoSPI Configuration",
+      "x": 6260,
+      "y": 3000,
+      "width": 600,
+      "height": 400,
+      "color": "5"
+    },
+    {
+      "id": "n_include_app_config",
+      "type": "file",
+      "file": "app_config.h.md",
+      "x": 6280,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "n_include_vospi_parser",
+      "type": "file",
+      "file": "vospi_parser.h.md",
+      "x": 6480,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g17",
+      "type": "group",
+      "label": "Board API",
+      "x": 7660,
+      "y": 3000,
+      "width": 600,
+      "height": 400,
+      "color": "6"
+    },
+    {
+      "id": "n_include_board",
+      "type": "file",
+      "file": "board.h.md",
+      "x": 7680,
+      "y": 3080,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g18",
+      "type": "group",
+      "label": "Command API",
+      "x": 0,
+      "y": 3480,
+      "width": 600,
+      "height": 400,
+      "color": "1"
+    },
+    {
+      "id": "n_include_command_dispatch",
+      "type": "file",
+      "file": "command_dispatch.h.md",
+      "x": 20,
+      "y": 3560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g19",
+      "type": "group",
+      "label": "Dosimeter API",
+      "x": 1840,
+      "y": 3480,
+      "width": 600,
+      "height": 400,
+      "color": "2"
+    },
+    {
+      "id": "n_include_dosimeter",
+      "type": "file",
+      "file": "dosimeter.h.md",
+      "x": 1860,
+      "y": 3560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g20",
+      "type": "group",
+      "label": "Health API",
+      "x": 3460,
+      "y": 3480,
+      "width": 600,
+      "height": 400,
+      "color": "3"
+    },
+    {
+      "id": "n_include_health",
+      "type": "file",
+      "file": "health.h.md",
+      "x": 3480,
+      "y": 3560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g21",
+      "type": "group",
+      "label": "Capture API",
+      "x": 4860,
+      "y": 3480,
+      "width": 600,
+      "height": 400,
+      "color": "4"
+    },
+    {
+      "id": "n_include_lepton_capture",
+      "type": "file",
+      "file": "lepton_capture.h.md",
+      "x": 4880,
+      "y": 3560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g22",
+      "type": "group",
+      "label": "CCI API",
+      "x": 6260,
+      "y": 3480,
+      "width": 600,
+      "height": 400,
+      "color": "5"
+    },
+    {
+      "id": "n_include_lepton_cci",
+      "type": "file",
+      "file": "lepton_cci.h.md",
+      "x": 6280,
+      "y": 3560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g23",
+      "type": "group",
+      "label": "COBS API",
+      "x": 7660,
+      "y": 3480,
+      "width": 600,
+      "height": 400,
+      "color": "6"
+    },
+    {
+      "id": "n_include_protocol_cobs_h_protocol_cobs",
+      "type": "file",
+      "file": "cobs.h.md",
+      "x": 7680,
+      "y": 3560,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g24",
+      "type": "group",
+      "label": "CRC API",
+      "x": 0,
+      "y": 3960,
+      "width": 600,
+      "height": 400,
+      "color": "1"
+    },
+    {
+      "id": "n_include_protocol_crc_h_protocol_crc",
+      "type": "file",
+      "file": "crc.h.md",
+      "x": 20,
+      "y": 4040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g25",
+      "type": "group",
+      "label": "Wire Protocol API",
+      "x": 1840,
+      "y": 3960,
+      "width": 600,
+      "height": 400,
+      "color": "2"
+    },
+    {
+      "id": "n_include_protocol_wire_protocol_h_protocol_wire_protocol",
+      "type": "file",
+      "file": "wire_protocol.h.md",
+      "x": 1860,
+      "y": 4040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g26",
+      "type": "group",
+      "label": "RS-485 API",
+      "x": 3460,
+      "y": 3960,
+      "width": 600,
+      "height": 400,
+      "color": "3"
+    },
+    {
+      "id": "n_include_rs485",
+      "type": "file",
+      "file": "rs485.h.md",
+      "x": 3480,
+      "y": 4040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g27",
+      "type": "group",
+      "label": "HAL Configuration",
+      "x": 4860,
+      "y": 3960,
+      "width": 600,
+      "height": 400,
+      "color": "4"
+    },
+    {
+      "id": "n_include_stm32f4xx_hal_conf",
+      "type": "file",
+      "file": "stm32f4xx_hal_conf.h.md",
+      "x": 4880,
+      "y": 4040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g28",
+      "type": "group",
+      "label": "CDC API",
+      "x": 6260,
+      "y": 3960,
+      "width": 600,
+      "height": 400,
+      "color": "5"
+    },
+    {
+      "id": "n_include_usb_cdc_if",
+      "type": "file",
+      "file": "usb_cdc_if.h.md",
+      "x": 6280,
+      "y": 4040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g29",
+      "type": "group",
+      "label": "USB Device API",
+      "x": 7660,
+      "y": 3960,
+      "width": 600,
+      "height": 400,
+      "color": "6"
+    },
+    {
+      "id": "n_include_usb_device",
+      "type": "file",
+      "file": "usb_device.h.md",
+      "x": 7680,
+      "y": 4040,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g30",
+      "type": "group",
+      "label": "UVC API",
+      "x": 0,
+      "y": 4440,
+      "width": 600,
+      "height": 400,
+      "color": "1"
+    },
+    {
+      "id": "n_include_usb_video_if",
+      "type": "file",
+      "file": "usb_video_if.h.md",
+      "x": 20,
+      "y": 4520,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g31",
+      "type": "group",
+      "label": "USB Configuration API",
+      "x": 1840,
+      "y": 4440,
+      "width": 600,
+      "height": 400,
+      "color": "2"
+    },
+    {
+      "id": "n_include_usbd_conf",
+      "type": "file",
+      "file": "usbd_conf.h.md",
+      "x": 1860,
+      "y": 4520,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g32",
+      "type": "group",
+      "label": "USB Descriptor API",
+      "x": 3460,
+      "y": 4440,
+      "width": 600,
+      "height": 400,
+      "color": "3"
+    },
+    {
+      "id": "n_include_usbd_desc",
+      "type": "file",
+      "file": "usbd_desc.h.md",
+      "x": 3480,
+      "y": 4520,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g33",
+      "type": "group",
+      "label": "Project Goal",
+      "x": 4860,
+      "y": 4440,
+      "width": 600,
+      "height": 400,
+      "color": "4"
+    },
+    {
+      "id": "n_knowledge_base_home_project_outcome",
+      "type": "file",
+      "file": "ThermalCamDev Target Outcome.md",
+      "x": 4880,
+      "y": 4520,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": "g34",
+      "type": "group",
+      "label": "Runtime Model Decision",
+      "x": 6260,
+      "y": 4440,
+      "width": 600,
+      "height": 400,
+      "color": "5"
+    },
+    {
+      "id": "n_project_decision_log_bare_metal_or_freertos",
+      "type": "file",
+      "file": "P-005 Bare-Metal versus FreeRTOS Decision.md",
+      "x": 6280,
+      "y": 4520,
+      "width": 180,
+      "height": 60
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_include_app_config_include_vospi_parser",
+      "fromNode": "n_include_app_config",
+      "toNode": "n_include_vospi_parser",
+      "label": "imports [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_adc_timer_init",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_adc_timer_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_board_clock_valid",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_board_clock_valid",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_board_fatal",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_board_fatal",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_board_init",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_board_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_board_lepton_cs",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_board_lepton_cs",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_board_lepton_power",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_board_lepton_power",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_board_lepton_reset",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_board_lepton_reset",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_board_reset_cause",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_board_reset_cause",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_board_rs485_de",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_board_rs485_de",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_board_unique_id_word",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_board_unique_id_word",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_dma_init",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_dma_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_gpio_init",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_gpio_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_hal_adc_mspinit",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_hal_adc_mspinit",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_hal_i2c_mspinit",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_hal_i2c_mspinit",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_hal_spi_mspinit",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_hal_spi_mspinit",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_hal_tim_base_mspinit",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_hal_tim_base_mspinit",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_hal_uart_mspinit",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_hal_uart_mspinit",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_i2c_init",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_i2c_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_spi_init",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_spi_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_system_clock_config",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_system_clock_config",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_board_uart_init",
+      "fromNode": "n_board_board",
+      "toNode": "n_board_board_uart_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_init_board_board_adc_timer_init",
+      "fromNode": "n_board_board_board_init",
+      "toNode": "n_board_board_adc_timer_init",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_init_board_board_board_clock_valid",
+      "fromNode": "n_board_board_board_init",
+      "toNode": "n_board_board_board_clock_valid",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_init_board_board_dma_init",
+      "fromNode": "n_board_board_board_init",
+      "toNode": "n_board_board_dma_init",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_init_board_board_gpio_init",
+      "fromNode": "n_board_board_board_init",
+      "toNode": "n_board_board_gpio_init",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_init_board_board_i2c_init",
+      "fromNode": "n_board_board_board_init",
+      "toNode": "n_board_board_i2c_init",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_init_board_board_spi_init",
+      "fromNode": "n_board_board_board_init",
+      "toNode": "n_board_board_spi_init",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_init_board_board_system_clock_config",
+      "fromNode": "n_board_board_board_init",
+      "toNode": "n_board_board_system_clock_config",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_init_board_board_uart_init",
+      "fromNode": "n_board_board_board_init",
+      "toNode": "n_board_board_uart_init",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_init_src_health_health_increment",
+      "fromNode": "n_board_board_board_init",
+      "toNode": "n_src_health_health_increment",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_init_src_main_main",
+      "fromNode": "n_board_board_board_init",
+      "toNode": "n_src_main_main",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_reset_cause_src_main_main",
+      "fromNode": "n_board_board_board_reset_cause",
+      "toNode": "n_src_main_main",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_unique_id_word_drivers_rs485_handle_message",
+      "fromNode": "n_board_board_board_unique_id_word",
+      "toNode": "n_drivers_rs485_handle_message",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_unique_id_word_protocol_command_dispatch_assign_bus_address",
+      "fromNode": "n_board_board_board_unique_id_word",
+      "toNode": "n_protocol_command_dispatch_assign_bus_address",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_unique_id_word_protocol_command_dispatch_get_info",
+      "fromNode": "n_board_board_board_unique_id_word",
+      "toNode": "n_protocol_command_dispatch_get_info",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_unique_id_word_usb_usbd_desc_serial_descriptor",
+      "fromNode": "n_board_board_board_unique_id_word",
+      "toNode": "n_usb_usbd_desc_serial_descriptor",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_lepton_power_lepton_lepton_capture_lepton_capture_init",
+      "fromNode": "n_board_board_board_lepton_power",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_init",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_lepton_power_lepton_lepton_capture_lepton_capture_task",
+      "fromNode": "n_board_board_board_lepton_power",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_lepton_reset_lepton_lepton_capture_lepton_capture_init",
+      "fromNode": "n_board_board_board_lepton_reset",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_init",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_lepton_reset_lepton_lepton_capture_lepton_capture_task",
+      "fromNode": "n_board_board_board_lepton_reset",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_lepton_cs_board_board_board_fatal",
+      "fromNode": "n_board_board_board_lepton_cs",
+      "toNode": "n_board_board_board_fatal",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_lepton_cs_lepton_lepton_capture_hal_spi_errorcallback",
+      "fromNode": "n_board_board_board_lepton_cs",
+      "toNode": "n_lepton_lepton_capture_hal_spi_errorcallback",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_lepton_cs_lepton_lepton_capture_hal_spi_rxcpltcallback",
+      "fromNode": "n_board_board_board_lepton_cs",
+      "toNode": "n_lepton_lepton_capture_hal_spi_rxcpltcallback",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_lepton_cs_lepton_lepton_capture_lepton_capture_init",
+      "fromNode": "n_board_board_board_lepton_cs",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_init",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_lepton_cs_lepton_lepton_capture_lepton_capture_task",
+      "fromNode": "n_board_board_board_lepton_cs",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_lepton_cs_lepton_lepton_capture_stop_spi_and_resync",
+      "fromNode": "n_board_board_board_lepton_cs",
+      "toNode": "n_lepton_lepton_capture_stop_spi_and_resync",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_rs485_de_board_board_board_fatal",
+      "fromNode": "n_board_board_board_rs485_de",
+      "toNode": "n_board_board_board_fatal",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_rs485_de_drivers_rs485_begin_transmit",
+      "fromNode": "n_board_board_board_rs485_de",
+      "toNode": "n_drivers_rs485_begin_transmit",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_rs485_de_drivers_rs485_hal_uart_errorcallback",
+      "fromNode": "n_board_board_board_rs485_de",
+      "toNode": "n_drivers_rs485_hal_uart_errorcallback",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_rs485_de_drivers_rs485_hal_uart_txcpltcallback",
+      "fromNode": "n_board_board_board_rs485_de",
+      "toNode": "n_drivers_rs485_hal_uart_txcpltcallback",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_rs485_de_drivers_rs485_rs485_init",
+      "fromNode": "n_board_board_board_rs485_de",
+      "toNode": "n_drivers_rs485_rs485_init",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_fatal_board_board_hal_adc_mspinit",
+      "fromNode": "n_board_board_board_fatal",
+      "toNode": "n_board_board_hal_adc_mspinit",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_fatal_board_board_hal_spi_mspinit",
+      "fromNode": "n_board_board_board_fatal",
+      "toNode": "n_board_board_hal_spi_mspinit",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_fatal_board_board_hal_uart_mspinit",
+      "fromNode": "n_board_board_board_fatal",
+      "toNode": "n_board_board_hal_uart_mspinit",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_board_fatal_board_stm32f4xx_it_busfault_handler",
+      "fromNode": "n_board_board_board_fatal",
+      "toNode": "n_board_stm32f4xx_it_busfault_handler",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_fatal_board_stm32f4xx_it_hardfault_handler",
+      "fromNode": "n_board_board_board_fatal",
+      "toNode": "n_board_stm32f4xx_it_hardfault_handler",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_fatal_board_stm32f4xx_it_memmanage_handler",
+      "fromNode": "n_board_board_board_fatal",
+      "toNode": "n_board_stm32f4xx_it_memmanage_handler",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_fatal_board_stm32f4xx_it_usagefault_handler",
+      "fromNode": "n_board_board_board_fatal",
+      "toNode": "n_board_stm32f4xx_it_usagefault_handler",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_board_fatal_src_main_main",
+      "fromNode": "n_board_board_board_fatal",
+      "toNode": "n_src_main_main",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_board_board_hal_i2c_mspinit_i2c_handletypedef",
+      "fromNode": "n_board_board_hal_i2c_mspinit",
+      "toNode": "n_i2c_handletypedef",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_hal_spi_mspinit_src_board_board_c_spi_handletypedef",
+      "fromNode": "n_board_board_hal_spi_mspinit",
+      "toNode": "n_src_board_board_c_spi_handletypedef",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_hal_adc_mspinit_src_board_board_c_adc_handletypedef",
+      "fromNode": "n_board_board_hal_adc_mspinit",
+      "toNode": "n_src_board_board_c_adc_handletypedef",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_hal_tim_base_mspinit_tim_handletypedef",
+      "fromNode": "n_board_board_hal_tim_base_mspinit",
+      "toNode": "n_tim_handletypedef",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_board_board_hal_uart_mspinit_src_board_board_c_uart_handletypedef",
+      "fromNode": "n_board_board_hal_uart_mspinit",
+      "toNode": "n_src_board_board_c_uart_handletypedef",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_busfault_handler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_busfault_handler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_debugmon_handler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_debugmon_handler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_dma1_stream3_irqhandler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_dma1_stream3_irqhandler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_dma1_stream5_irqhandler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_dma1_stream5_irqhandler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_dma1_stream6_irqhandler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_dma1_stream6_irqhandler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_dma2_stream0_irqhandler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_dma2_stream0_irqhandler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_exti15_10_irqhandler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_exti15_10_irqhandler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_hardfault_handler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_hardfault_handler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_memmanage_handler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_memmanage_handler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_nmi_handler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_nmi_handler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_otg_fs_irqhandler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_otg_fs_irqhandler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_pendsv_handler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_pendsv_handler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_svc_handler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_svc_handler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_systick_handler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_systick_handler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_usagefault_handler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_usagefault_handler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_board_stm32f4xx_it_board_stm32f4xx_it_usart2_irqhandler",
+      "fromNode": "n_board_stm32f4xx_it",
+      "toNode": "n_board_stm32f4xx_it_usart2_irqhandler",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_drivers_dosimeter_dosimeter_get_snapshot",
+      "fromNode": "n_drivers_dosimeter",
+      "toNode": "n_drivers_dosimeter_dosimeter_get_snapshot",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_drivers_dosimeter_dosimeter_init",
+      "fromNode": "n_drivers_dosimeter",
+      "toNode": "n_drivers_dosimeter_dosimeter_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_drivers_dosimeter_dosimeter_task",
+      "fromNode": "n_drivers_dosimeter",
+      "toNode": "n_drivers_dosimeter_dosimeter_task",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_drivers_dosimeter_hal_adc_convcpltcallback",
+      "fromNode": "n_drivers_dosimeter",
+      "toNode": "n_drivers_dosimeter_hal_adc_convcpltcallback",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_drivers_dosimeter_hal_adc_convhalfcpltcallback",
+      "fromNode": "n_drivers_dosimeter",
+      "toNode": "n_drivers_dosimeter_hal_adc_convhalfcpltcallback",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_drivers_dosimeter_integer_sqrt",
+      "fromNode": "n_drivers_dosimeter",
+      "toNode": "n_drivers_dosimeter_integer_sqrt",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_drivers_dosimeter_process_half",
+      "fromNode": "n_drivers_dosimeter",
+      "toNode": "n_drivers_dosimeter_process_half",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_integer_sqrt_drivers_dosimeter_process_half",
+      "fromNode": "n_drivers_dosimeter_integer_sqrt",
+      "toNode": "n_drivers_dosimeter_process_half",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_dosimeter_init_src_main_main",
+      "fromNode": "n_drivers_dosimeter_dosimeter_init",
+      "toNode": "n_src_main_main",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_process_half_drivers_dosimeter_dosimeter_task",
+      "fromNode": "n_drivers_dosimeter_process_half",
+      "toNode": "n_drivers_dosimeter_dosimeter_task",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_dosimeter_task_src_main_main",
+      "fromNode": "n_drivers_dosimeter_dosimeter_task",
+      "toNode": "n_src_main_main",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_dosimeter_get_snapshot_dosimeter_snapshot_t",
+      "fromNode": "n_drivers_dosimeter_dosimeter_get_snapshot",
+      "toNode": "n_dosimeter_snapshot_t",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_dosimeter_get_snapshot_protocol_command_dispatch_dosimeter_status",
+      "fromNode": "n_drivers_dosimeter_dosimeter_get_snapshot",
+      "toNode": "n_protocol_command_dispatch_dosimeter_status",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_hal_adc_convhalfcpltcallback_src_drivers_dosimeter_c_adc_handletypedef",
+      "fromNode": "n_drivers_dosimeter_hal_adc_convhalfcpltcallback",
+      "toNode": "n_src_drivers_dosimeter_c_adc_handletypedef",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_hal_adc_convhalfcpltcallback_src_health_health_increment",
+      "fromNode": "n_drivers_dosimeter_hal_adc_convhalfcpltcallback",
+      "toNode": "n_src_health_health_increment",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_drivers_dosimeter_c_adc_handletypedef_drivers_dosimeter_hal_adc_convcpltcallback",
+      "fromNode": "n_src_drivers_dosimeter_c_adc_handletypedef",
+      "toNode": "n_drivers_dosimeter_hal_adc_convcpltcallback",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_dosimeter_hal_adc_convcpltcallback_src_health_health_increment",
+      "fromNode": "n_drivers_dosimeter_hal_adc_convcpltcallback",
+      "toNode": "n_src_health_health_increment",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_rs485_drivers_rs485_begin_transmit",
+      "fromNode": "n_drivers_rs485",
+      "toNode": "n_drivers_rs485_begin_transmit",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_drivers_rs485_hal_uart_errorcallback",
+      "fromNode": "n_drivers_rs485",
+      "toNode": "n_drivers_rs485_hal_uart_errorcallback",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_drivers_rs485_hal_uart_txcpltcallback",
+      "fromNode": "n_drivers_rs485",
+      "toNode": "n_drivers_rs485_hal_uart_txcpltcallback",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_drivers_rs485_handle_message",
+      "fromNode": "n_drivers_rs485",
+      "toNode": "n_drivers_rs485_handle_message",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_drivers_rs485_rs485_get_status",
+      "fromNode": "n_drivers_rs485",
+      "toNode": "n_drivers_rs485_rs485_get_status",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_drivers_rs485_rs485_init",
+      "fromNode": "n_drivers_rs485",
+      "toNode": "n_drivers_rs485_rs485_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_drivers_rs485_rs485_set_address",
+      "fromNode": "n_drivers_rs485",
+      "toNode": "n_drivers_rs485_rs485_set_address",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_drivers_rs485_rs485_task",
+      "fromNode": "n_drivers_rs485",
+      "toNode": "n_drivers_rs485_rs485_task",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_begin_transmit_protocol_wire_protocol_wire_encode",
+      "fromNode": "n_drivers_rs485_begin_transmit",
+      "toNode": "n_protocol_wire_protocol_wire_encode",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_rs485_begin_transmit_src_drivers_rs485_c_wire_message_t",
+      "fromNode": "n_drivers_rs485_begin_transmit",
+      "toNode": "n_src_drivers_rs485_c_wire_message_t",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_begin_transmit_src_health_health_increment",
+      "fromNode": "n_drivers_rs485_begin_transmit",
+      "toNode": "n_src_health_health_increment",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_rs485_begin_transmit_drivers_rs485_handle_message",
+      "fromNode": "n_drivers_rs485_begin_transmit",
+      "toNode": "n_drivers_rs485_handle_message",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_begin_transmit_drivers_rs485_rs485_task",
+      "fromNode": "n_drivers_rs485_begin_transmit",
+      "toNode": "n_drivers_rs485_rs485_task",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_src_drivers_rs485_c_wire_message_t_drivers_rs485_handle_message",
+      "fromNode": "n_src_drivers_rs485_c_wire_message_t",
+      "toNode": "n_drivers_rs485_handle_message",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_rs485_init_protocol_wire_protocol_wire_stream_init",
+      "fromNode": "n_drivers_rs485_rs485_init",
+      "toNode": "n_protocol_wire_protocol_wire_stream_init",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_rs485_rs485_init_src_main_main",
+      "fromNode": "n_drivers_rs485_rs485_init",
+      "toNode": "n_src_main_main",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_rs485_handle_message_protocol_command_dispatch_command_dispatch",
+      "fromNode": "n_drivers_rs485_handle_message",
+      "toNode": "n_protocol_command_dispatch_command_dispatch",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_rs485_handle_message_drivers_rs485_rs485_task",
+      "fromNode": "n_drivers_rs485_handle_message",
+      "toNode": "n_drivers_rs485_rs485_task",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_rs485_task_protocol_wire_protocol_wire_stream_push",
+      "fromNode": "n_drivers_rs485_rs485_task",
+      "toNode": "n_protocol_wire_protocol_wire_stream_push",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_rs485_rs485_task_src_main_main",
+      "fromNode": "n_drivers_rs485_rs485_task",
+      "toNode": "n_src_main_main",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_rs485_rs485_get_status_rs485_status_t",
+      "fromNode": "n_drivers_rs485_rs485_get_status",
+      "toNode": "n_rs485_status_t",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_rs485_set_address_protocol_command_dispatch_assign_bus_address",
+      "fromNode": "n_drivers_rs485_rs485_set_address",
+      "toNode": "n_protocol_command_dispatch_assign_bus_address",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_drivers_rs485_hal_uart_txcpltcallback_src_drivers_rs485_c_uart_handletypedef",
+      "fromNode": "n_drivers_rs485_hal_uart_txcpltcallback",
+      "toNode": "n_src_drivers_rs485_c_uart_handletypedef",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_src_drivers_rs485_c_uart_handletypedef_drivers_rs485_hal_uart_errorcallback",
+      "fromNode": "n_src_drivers_rs485_c_uart_handletypedef",
+      "toNode": "n_drivers_rs485_hal_uart_errorcallback",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_drivers_rs485_hal_uart_errorcallback_src_health_health_increment",
+      "fromNode": "n_drivers_rs485_hal_uart_errorcallback",
+      "toNode": "n_src_health_health_increment",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_health_src_health_health_increment",
+      "fromNode": "n_src_health",
+      "toNode": "n_src_health_health_increment",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_src_health_health_increment_lepton_lepton_capture_hal_spi_errorcallback",
+      "fromNode": "n_src_health_health_increment",
+      "toNode": "n_lepton_lepton_capture_hal_spi_errorcallback",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_health_health_increment_lepton_lepton_capture_hal_spi_rxcpltcallback",
+      "fromNode": "n_src_health_health_increment",
+      "toNode": "n_lepton_lepton_capture_hal_spi_rxcpltcallback",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_health_health_increment_lepton_lepton_capture_lepton_capture_task",
+      "fromNode": "n_src_health_health_increment",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_health_health_increment_lepton_lepton_capture_process_segments",
+      "fromNode": "n_src_health_health_increment",
+      "toNode": "n_lepton_lepton_capture_process_segments",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_health_health_increment_lepton_lepton_capture_stop_spi_and_resync",
+      "fromNode": "n_src_health_health_increment",
+      "toNode": "n_lepton_lepton_capture_stop_spi_and_resync",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_health_health_increment_lepton_lepton_cci_read_bytes",
+      "fromNode": "n_src_health_health_increment",
+      "toNode": "n_lepton_lepton_cci_read_bytes",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_health_health_increment_lepton_lepton_cci_wait_ready",
+      "fromNode": "n_src_health_health_increment",
+      "toNode": "n_lepton_lepton_cci_wait_ready",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_health_health_increment_lepton_lepton_cci_write_bytes",
+      "fromNode": "n_src_health_health_increment",
+      "toNode": "n_lepton_lepton_cci_write_bytes",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_health_health_increment_usb_usb_cdc_if_cdc_receive",
+      "fromNode": "n_src_health_health_increment",
+      "toNode": "n_usb_usb_cdc_if_cdc_receive",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_src_health_health_increment_usb_usb_cdc_if_transmit_response",
+      "fromNode": "n_src_health_health_increment",
+      "toNode": "n_usb_usb_cdc_if_transmit_response",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_enter_state",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_enter_state",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_hal_gpio_exti_callback",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_hal_gpio_exti_callback",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_hal_spi_errorcallback",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_hal_spi_errorcallback",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_hal_spi_rxcpltcallback",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_hal_spi_rxcpltcallback",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_lepton_capture_get_status",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_get_status",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_lepton_capture_init",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_init",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_lepton_capture_latest_frame",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_latest_frame",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_lepton_capture_run_ffc",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_run_ffc",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_lepton_capture_task",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_process_segments",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_process_segments",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_start_segment_dma",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_start_segment_dma",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_lepton_capture_stop_spi_and_resync",
+      "fromNode": "n_lepton_lepton_capture",
+      "toNode": "n_lepton_lepton_capture_stop_spi_and_resync",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_enter_state_lepton_state_t",
+      "fromNode": "n_lepton_lepton_capture_enter_state",
+      "toNode": "n_lepton_state_t",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_enter_state_lepton_lepton_capture_lepton_capture_init",
+      "fromNode": "n_lepton_lepton_capture_enter_state",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_init",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_enter_state_lepton_lepton_capture_lepton_capture_task",
+      "fromNode": "n_lepton_lepton_capture_enter_state",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_enter_state_lepton_lepton_capture_stop_spi_and_resync",
+      "fromNode": "n_lepton_lepton_capture_enter_state",
+      "toNode": "n_lepton_lepton_capture_stop_spi_and_resync",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_stop_spi_and_resync_lepton_lepton_capture_lepton_capture_task",
+      "fromNode": "n_lepton_lepton_capture_stop_spi_and_resync",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_stop_spi_and_resync_lepton_lepton_capture_process_segments",
+      "fromNode": "n_lepton_lepton_capture_stop_spi_and_resync",
+      "toNode": "n_lepton_lepton_capture_process_segments",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_stop_spi_and_resync_lepton_vospi_parser_vospi_parser_init",
+      "fromNode": "n_lepton_lepton_capture_stop_spi_and_resync",
+      "toNode": "n_lepton_vospi_parser_vospi_parser_init",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_start_segment_dma_lepton_lepton_capture_hal_spi_rxcpltcallback",
+      "fromNode": "n_lepton_lepton_capture_start_segment_dma",
+      "toNode": "n_lepton_lepton_capture_hal_spi_rxcpltcallback",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_start_segment_dma_lepton_lepton_capture_lepton_capture_task",
+      "fromNode": "n_lepton_lepton_capture_start_segment_dma",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_init_lepton_vospi_parser_vospi_parser_init",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_init",
+      "toNode": "n_lepton_vospi_parser_vospi_parser_init",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_init_src_main_main",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_init",
+      "toNode": "n_src_main_main",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_process_segments_lepton_lepton_capture_lepton_capture_task",
+      "fromNode": "n_lepton_lepton_capture_process_segments",
+      "toNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_process_segments_lepton_vospi_parser_vospi_parse_segment",
+      "fromNode": "n_lepton_lepton_capture_process_segments",
+      "toNode": "n_lepton_vospi_parser_vospi_parse_segment",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_task_lepton_lepton_cci_lepton_cci_booted",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_booted",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_task_lepton_lepton_cci_lepton_cci_configure_radiometric",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_configure_radiometric",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_task_src_main_main",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_task",
+      "toNode": "n_src_main_main",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_latest_frame_lepton_vospi_parser_vospi_latest_frame",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_latest_frame",
+      "toNode": "n_lepton_vospi_parser_vospi_latest_frame",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_latest_frame_protocol_command_dispatch_frame_chunk",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_latest_frame",
+      "toNode": "n_protocol_command_dispatch_frame_chunk",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_latest_frame_protocol_command_dispatch_stream_status",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_latest_frame",
+      "toNode": "n_protocol_command_dispatch_stream_status",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_latest_frame_usb_usb_video_if_video_data",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_latest_frame",
+      "toNode": "n_usb_usb_video_if_video_data",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_get_status_lepton_capture_status_t",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_get_status",
+      "toNode": "n_lepton_capture_status_t",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_get_status_protocol_command_dispatch_get_lepton_status",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_get_status",
+      "toNode": "n_protocol_command_dispatch_get_lepton_status",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_run_ffc_lepton_lepton_cci_lepton_cci_run",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_run_ffc",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_run",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_lepton_capture_run_ffc_protocol_command_dispatch_command_dispatch",
+      "fromNode": "n_lepton_lepton_capture_lepton_capture_run_ffc",
+      "toNode": "n_protocol_command_dispatch_command_dispatch",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_capture_hal_spi_rxcpltcallback_src_lepton_lepton_capture_c_spi_handletypedef",
+      "fromNode": "n_lepton_lepton_capture_hal_spi_rxcpltcallback",
+      "toNode": "n_src_lepton_lepton_capture_c_spi_handletypedef",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_src_lepton_lepton_capture_c_spi_handletypedef_lepton_lepton_capture_hal_spi_errorcallback",
+      "fromNode": "n_src_lepton_lepton_capture_c_spi_handletypedef",
+      "toNode": "n_lepton_lepton_capture_hal_spi_errorcallback",
+      "label": "references [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_lepton_cci_booted",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_booted",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_lepton_cci_configure_radiometric",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_configure_radiometric",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_lepton_cci_get",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_get",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_lepton_cci_read_register",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_read_register",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_lepton_cci_run",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_run",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_lepton_cci_set",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_set",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_lepton_cci_write_register",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_write_register",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_read_bytes",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_read_bytes",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_wait_ready",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_wait_ready",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_words_from_camera",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_words_from_camera",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_words_to_camera",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_words_to_camera",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_lepton_cci_write_bytes",
+      "fromNode": "n_lepton_lepton_cci",
+      "toNode": "n_lepton_lepton_cci_write_bytes",
+      "label": "contains [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_read_bytes_lepton_lepton_cci_lepton_cci_read_register",
+      "fromNode": "n_lepton_lepton_cci_read_bytes",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_read_register",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_read_bytes_lepton_lepton_cci_words_from_camera",
+      "fromNode": "n_lepton_lepton_cci_read_bytes",
+      "toNode": "n_lepton_lepton_cci_words_from_camera",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_write_bytes_lepton_lepton_cci_lepton_cci_write_register",
+      "fromNode": "n_lepton_lepton_cci_write_bytes",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_write_register",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_write_bytes_lepton_lepton_cci_words_to_camera",
+      "fromNode": "n_lepton_lepton_cci_write_bytes",
+      "toNode": "n_lepton_lepton_cci_words_to_camera",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_cci_read_register_lepton_lepton_cci_lepton_cci_booted",
+      "fromNode": "n_lepton_lepton_cci_lepton_cci_read_register",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_booted",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_cci_read_register_lepton_lepton_cci_lepton_cci_get",
+      "fromNode": "n_lepton_lepton_cci_lepton_cci_read_register",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_get",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_cci_read_register_lepton_lepton_cci_wait_ready",
+      "fromNode": "n_lepton_lepton_cci_lepton_cci_read_register",
+      "toNode": "n_lepton_lepton_cci_wait_ready",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_cci_read_register_protocol_command_dispatch_register_read",
+      "fromNode": "n_lepton_lepton_cci_lepton_cci_read_register",
+      "toNode": "n_protocol_command_dispatch_register_read",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_cci_write_register_lepton_lepton_cci_lepton_cci_get",
+      "fromNode": "n_lepton_lepton_cci_lepton_cci_write_register",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_get",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_cci_write_register_lepton_lepton_cci_lepton_cci_run",
+      "fromNode": "n_lepton_lepton_cci_lepton_cci_write_register",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_run",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_cci_write_register_lepton_lepton_cci_lepton_cci_set",
+      "fromNode": "n_lepton_lepton_cci_lepton_cci_write_register",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_set",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_lepton_cci_write_register_protocol_command_dispatch_register_write",
+      "fromNode": "n_lepton_lepton_cci_lepton_cci_write_register",
+      "toNode": "n_protocol_command_dispatch_register_write",
+      "label": "calls [INFERRED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_wait_ready_lepton_lepton_cci_lepton_cci_get",
+      "fromNode": "n_lepton_lepton_cci_wait_ready",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_get",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_wait_ready_lepton_lepton_cci_lepton_cci_run",
+      "fromNode": "n_lepton_lepton_cci_wait_ready",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_run",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_wait_ready_lepton_lepton_cci_lepton_cci_set",
+      "fromNode": "n_lepton_lepton_cci_wait_ready",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_set",
+      "label": "calls [EXTRACTED]"
+    },
+    {
+      "id": "e_lepton_lepton_cci_words_to_camera_lepton_lepton_cci_lepton_cci_set",
+      "fromNode": "n_lepton_lepton_cci_words_to_camera",
+      "toNode": "n_lepton_lepton_cci_lepton_cci_set",
+      "label": "calls [EXTRACTED]"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+---
+source_file: "src/usb/usbd_desc.c"
+type: "code"
+community: "USB Descriptors"
+location: "L84"
+tags:
+  - graphify/code
+  - graphify/EXTRACTED
+  - community/USB_Descriptors
+---
+
+# serial_descriptor()
+
+## Connections
+- [[USBD_SpeedTypeDef]] - `references` [EXTRACTED]
+- [[board_unique_id_word()]] - `calls` [INFERRED]
+- [[unicode_hex()]] - `calls` [EXTRACTED]
+- [[usbd_desc.c]] - `contains` [EXTRACTED]
+
+#graphify/code #graphify/EXTRACTED #community/USB_Descriptors

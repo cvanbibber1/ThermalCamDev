@@ -1,0 +1,13 @@
+C:\Github\ThermalCamDev\Knowledge Base\Architecture\System Specification v0.1.md
+C:\Github\ThermalCamDev\Knowledge Base\Hardware\Pin Map.md
+C:\Github\ThermalCamDev\Knowledge Base\Home.md
+C:\Github\ThermalCamDev\Knowledge Base\Interfaces\Dosimeter Telemetry.md
+C:\Github\ThermalCamDev\Knowledge Base\Interfaces\RS-485 Multidrop Protocol.md
+C:\Github\ThermalCamDev\Knowledge Base\Interfaces\USB Interface.md
+C:\Github\ThermalCamDev\Knowledge Base\Project\Decision Log.md
+C:\Github\ThermalCamDev\Knowledge Base\Project\Implementation Status.md
+C:\Github\ThermalCamDev\Knowledge Base\Project\Risks and Bugs.md
+C:\Github\ThermalCamDev\Knowledge Base\Project\TODO.md
+C:\Github\ThermalCamDev\Knowledge Base\Sources\Primary Sources.md
+C:\Github\ThermalCamDev\README.md
+C:\Github\ThermalCamDev\requirements-dev.txt
