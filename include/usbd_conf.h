@@ -33,8 +33,8 @@
  * descriptors are byte-identical apart from the GUID. */
 #define UVC_GUID_Y16_FOURCC 0x20363159U
 #define UVC_GUID_YUY2_FOURCC 0x32595559U
-#define UVC_UNCOMPRESSED_GUID UVC_GUID_Y16_FOURCC
-#define UVC_SECOND_FORMAT_FOURCC UVC_GUID_YUY2_FOURCC
+#define UVC_UNCOMPRESSED_GUID UVC_GUID_YUY2_FOURCC
+#define UVC_SECOND_FORMAT_FOURCC UVC_GUID_Y16_FOURCC
 
 /* Advertising both formats does not give hosts a choice on Windows: measured
  * 2026-08-18, when Y16 and YUY2 are both present the Windows frame server
