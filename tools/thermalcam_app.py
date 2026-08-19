@@ -425,7 +425,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.preview.clicked.connect(self.on_click)
         self.preview.hovered.connect(self.on_hover)
         layout.addWidget(self.preview, 1)
-        layout.addWidget(self._build_panel())
+        # The controls are taller than a short window, so let them scroll
+        # rather than clipping whichever group happens to be last.
+        scroller = QtWidgets.QScrollArea()
+        scroller.setWidget(self._build_panel())
+        scroller.setWidgetResizable(True)
+        scroller.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        scroller.setFrameShape(QtWidgets.QFrame.NoFrame)
+        scroller.setFixedWidth(352)
+        layout.addWidget(scroller)
         self.setCentralWidget(central)
 
         self.readout = QtWidgets.QLabel("waiting for frames")
@@ -437,7 +445,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _build_panel(self) -> QtWidgets.QWidget:
         panel = QtWidgets.QWidget()
-        panel.setFixedWidth(330)
+        panel.setMinimumWidth(320)
         box = QtWidgets.QVBoxLayout(panel)
 
         image_group = QtWidgets.QGroupBox("Image")
