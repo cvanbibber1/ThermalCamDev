@@ -268,9 +268,19 @@ def save_frame(link: CameraLink, output: Path) -> None:
     print(f"saved generation {generation}, {total} bytes to {output}")
 
 
-def run(args: argparse.Namespace) -> None:
+def run(args: argparse.Namespace, link: "CameraLink | None" = None) -> None:
+    """Execute one command, printing the result.
+
+    A caller that already holds the port passes its own link; serial ports are
+    exclusive, so the application could not otherwise run these commands while
+    it is connected. A supplied link is left open for the caller to reuse.
+    """
+    borrowed = link is not None
     destination = 0xFF if args.command in {"discover", "assign"} else args.address
-    link = CameraLink(args.port, args.baud, destination, args.timeout)
+    if link is None:
+        link = CameraLink(args.port, args.baud, destination, args.timeout)
+    else:
+        link.destination = destination
     try:
         opcode = OPCODES[args.command]
         if args.command == "cci-get":
@@ -354,12 +364,13 @@ def run(args: argparse.Namespace) -> None:
             else:
                 print_words(args.command, body)
     finally:
-        link.close()
+        if not borrowed:
+            link.close()
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: "list[str] | None" = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", required=True, help="CDC or RS-485 serial port, for example COM12")
+    parser.add_argument("--port", required=False, help="CDC or RS-485 serial port, for example COM12")
     parser.add_argument("--baud", type=int, default=921_600, help="ignored by USB CDC hosts; field-bus default is 921600")
     parser.add_argument("--address", type=lambda value: int(value, 0), default=1)
     parser.add_argument("--timeout", type=float, default=2.0)
@@ -386,7 +397,7 @@ def parse_args() -> argparse.Namespace:
     assign_parser.add_argument("new_address", type=lambda value: int(value, 0))
     frame_parser = subparsers.add_parser("frame")
     frame_parser.add_argument("--output", type=Path, default=Path("frame-y16.raw"))
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 if __name__ == "__main__":
