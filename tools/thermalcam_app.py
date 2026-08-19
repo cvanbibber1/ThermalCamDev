@@ -145,6 +145,38 @@ class CameraControl:
             f"{elapsed / 1000:.0f}s ago of {period / 1000:.0f}s"
         )
 
+    def execute(self, text: str) -> str:
+        """Run any command-line command over the link this window holds.
+
+        Serial ports are exclusive, so while the application is connected the
+        command-line tool cannot reach the camera. Rather than duplicate every
+        command here, the same parser and decoders are driven directly and
+        their output captured.
+        """
+        import contextlib
+        import io
+
+        words = text.split()
+        if not words:
+            return ""
+        if not self.ensure():
+            return f"no control link ({self.error or 'not connected'})"
+        try:
+            # argparse writes its own usage to stderr and exits; keep both
+            # inside the console instead of the terminal the window came from.
+            with contextlib.redirect_stderr(io.StringIO()) as usage:
+                arguments = self._cli.parse_args(words)
+        except SystemExit:
+            detail = usage.getvalue().strip().splitlines()
+            return detail[-1] if detail else "unrecognised command"
+        buffer = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buffer):
+                self._cli.run(arguments, link=self._link)
+        except Exception as exc:  # noqa: BLE001 - reported in the console
+            return f"{buffer.getvalue()}error: {exc}"
+        return buffer.getvalue() or "ok"
+
     def close(self) -> None:
         if self._link is not None:
             try:
@@ -405,7 +437,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _build_panel(self) -> QtWidgets.QWidget:
         panel = QtWidgets.QWidget()
-        panel.setFixedWidth(300)
+        panel.setFixedWidth(330)
         box = QtWidgets.QVBoxLayout(panel)
 
         image_group = QtWidgets.QGroupBox("Image")
@@ -512,6 +544,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ffc_button.clicked.connect(self.on_ffc)
         camera.addWidget(self.ffc_button)
         box.addWidget(camera_group)
+
+        console_group = QtWidgets.QGroupBox("Command console")
+        console_layout = QtWidgets.QVBoxLayout(console_group)
+        self.console_input = QtWidgets.QLineEdit()
+        self.console_input.setPlaceholderText("health, cci-get 0x4EC0 2, ...")
+        self.console_input.returnPressed.connect(self.on_console)
+        console_layout.addWidget(self.console_input)
+        self.console_output = QtWidgets.QPlainTextEdit()
+        self.console_output.setReadOnly(True)
+        self.console_output.setMaximumHeight(120)
+        self.console_output.setStyleSheet("font-family: Consolas, monospace; font-size: 9pt;")
+        console_layout.addWidget(self.console_output)
+        box.addWidget(console_group)
 
         capture_group = QtWidgets.QGroupBox("Capture")
         capture = QtWidgets.QVBoxLayout(capture_group)
@@ -863,6 +908,17 @@ class MainWindow(QtWidgets.QMainWindow):
         status = self.control.ffc_status()
         self.link_label.setText(
             f"{self.control.port}    {status}" if status else str(self.control.port)
+        )
+
+    def on_console(self) -> None:
+        text = self.console_input.text().strip()
+        if not text:
+            return
+        self.console_input.clear()
+        self.console_output.appendPlainText(f"> {text}")
+        self.console_output.appendPlainText(self.control.execute(text).rstrip())
+        self.console_output.verticalScrollBar().setValue(
+            self.console_output.verticalScrollBar().maximum()
         )
 
     def on_zero_dosimeter(self) -> None:
