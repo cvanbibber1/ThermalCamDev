@@ -8,6 +8,9 @@ VoSPI capture, USB UVC Y16 + CDC control, dosimeter ADC telemetry, and a provisi
 four-wire multidrop transport. The design uses a bare-metal event loop and static runtime
 buffers.
 
+New to the camera? Read the [User Guide](USER_GUIDE.md), which covers running
+it over USB and RS-422 and lists every command and response.
+
 Start here:
 
 - [[Knowledge Base/Home|Project memory and navigation]]
