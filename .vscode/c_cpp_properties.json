@@ -8,8 +8,6 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/VIDEO/Inc",
-                "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/VIDEO/Src",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/Printer/Inc",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/Printer/Src",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/MTP/Inc",
@@ -83,6 +81,8 @@
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Utilities/Log",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/BillBoard/Inc",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/BillBoard/Src",
+                "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/VIDEO/Inc",
+                "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/VIDEO/Src",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Host_Library/Core/Inc",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Host_Library/Core/Src",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Host_Library/Class/AUDIO/Inc",
@@ -100,8 +100,6 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/VIDEO/Inc",
-                    "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/VIDEO/Src",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/Printer/Inc",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/Printer/Src",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/MTP/Inc",
@@ -175,6 +173,8 @@
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Utilities/Log",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/BillBoard/Inc",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/BillBoard/Src",
+                    "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/VIDEO/Inc",
+                    "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Device_Library/Class/VIDEO/Src",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Host_Library/Core/Inc",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Host_Library/Core/Src",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Middlewares/ST/STM32_USB_Host_Library/Class/AUDIO/Inc",

@@ -86,9 +86,14 @@ last-reviewed: 2026-08-18
 - Flash-backed settings in the last sector (`src/settings.c`) hold the dosimeter zero and
   survive reset and reflashing. Saves are deferred to the end of the task loop because the
   sector erase stalls the core for over a second; VoSPI reacquires by itself afterwards.
-- The dosimeter reports dose relative to a stored zero at 2.5 mV per rad, signed so an
-  under-driven detector reads negative instead of wrapping. `dosimeter-zero` averages 32 ADC
-  blocks, about two seconds, and writes the result to flash.
+- The dosimeter transfer function at PA4 is `DOSI = 0.1575 + 0.0025 * D_rad` volts, so dose
+  is the offset above a 157.5 mV intercept divided by 2.5 mV per rad. Readings are signed,
+  because an under-driven detector sits below the intercept. `dosimeter-zero` averages 32
+  ADC blocks, about two seconds, and stores a measured intercept for the unit in flash;
+  `dosimeter-set-zero 0` clears it and returns to the nominal intercept, which is reported
+  by the `nominal-calibration` flag.
+- The dosimeter input is ADC1 channel 4 on PA4, configured analog with no pull and sampled
+  over 144 cycles at rank 1, with VREFINT at rank 2 supplying the VDDA reference.
 - `tools/render_frame.py` renders a raw Y16 frame with plateau/linear/equalize AGC,
   ironbow/rainbow/gray colormaps, column-stripe removal, and optional flat-field division.
 
