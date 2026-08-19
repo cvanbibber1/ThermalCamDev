@@ -31,8 +31,14 @@
 #define APP_LEPTON_CHUNK_TIMEOUT_MS 50U
 #define APP_RS485_BAUD 921600U
 #define APP_NODE_ADDRESS_DEFAULT 1U
-/* Dosimeter conversion: 2.5 mV of change away from the stored zero is one rad
- * after the external 25x gain stage. */
+/* Dosimeter transfer function, in volts at PA4 after the external gain stage:
+ *
+ *     DOSI = 0.1575 + 0.0025 * D_rad
+ *
+ * so dose is the offset above the 157.5 mV intercept divided by 2.5 mV per
+ * rad. The intercept is the nominal value for the part; capturing a zero
+ * measures it for this particular unit and replaces it. */
+#define APP_DOSIMETER_INTERCEPT_UV 157500U
 #define APP_DOSIMETER_UV_PER_RAD 2500U
 /* Samples averaged when capturing a new zero. The ADC block rate is about
  * 15 Hz, so this settles the reference over roughly two seconds instead of

@@ -809,8 +809,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @staticmethod
     def _cli_flags(flags: int) -> str:
-        names = {0x02: "saturated", 0x04: "stale", 0x08: "zeroing...",
-                 0x10: "not zeroed yet"}
+        names = {0x01: "nominal 157.5 mV intercept", 0x02: "saturated",
+                 0x04: "stale", 0x08: "zeroing..."}
         return ", ".join(name for bit, name in names.items() if flags & bit)
 
     def on_failure(self, message: str) -> None:
