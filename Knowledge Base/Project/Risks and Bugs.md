@@ -78,8 +78,11 @@ last-reviewed: 2026-08-18
 - [ ] Confirm whether `rad` denotes accumulated dose or a rate quantity in the dosimeter
   source and define integration/reset semantics. The firmware currently reports an
   instantaneous reading derived from the voltage offset, not an integral over time.
-- [ ] **The dosimeter input is under-driven.** Measured 2026-08-19 the signal sits at 8 of
-  4095 ADC counts, where one count is about 730 uV, or 0.29 rad. After the two second
+- [ ] **The dosimeter input is under-driven.** Against the correct transfer function,
+  `DOSI = 0.1575 + 0.0025 * D_rad`, PA4 reads about 4.3 mV where zero dose should be
+  157.5 mV, so the nominal calibration reports about -61 rad. That is the expected reading
+  for an input that is not yet driven, not a fault in the conversion. Measured 2026-08-19
+  the signal sits at 6 to 9 of 4095 ADC counts, where one count is about 730 uV, or 0.29 rad. After the two second
   filter the reading still wanders about 271 uV, roughly 0.11 rad, over ten seconds, and it
   drifts by several hundred microvolts over minutes. Dose is therefore only meaningful to
   about a tenth of a rad, and re-zeroing is needed after the input is properly driven.

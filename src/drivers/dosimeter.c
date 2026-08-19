@@ -39,9 +39,17 @@ static uint32_t integer_sqrt(uint64_t value) {
 
 bool dosimeter_init(void) {
   memset(&current, 0, sizeof(current));
+  /* A stored value of zero means nothing has been captured for this unit, so
+   * the nominal intercept from the transfer function is used instead. */
   zero_uv = settings_get()->dosimeter_zero_uv;
   zero_valid = zero_uv != 0;
-  current.flags = DOSIMETER_FLAG_NOMINAL_CALIBRATION | DOSIMETER_FLAG_STALE;
+  if (!zero_valid) {
+    zero_uv = (int32_t)APP_DOSIMETER_INTERCEPT_UV;
+  }
+  current.flags = DOSIMETER_FLAG_STALE;
+  if (!zero_valid) {
+    current.flags |= DOSIMETER_FLAG_NOMINAL_CALIBRATION;
+  }
   if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma, ADC_DMA_WORDS) != HAL_OK) {
     return false;
   }
@@ -113,21 +121,23 @@ static void process_half(uint8_t half) {
   }
 
   current.zero_voltage_uv = zero_uv;
-  /* Signed difference in microvolts, then microrad at 2.5 mV per rad. The
-   * multiply is done in 64-bit because a full-scale swing overflows int32. */
+  /* DOSI = 0.1575 + 0.0025 * D_rad, so D_rad is the offset above the
+   * intercept divided by the slope. Signed, because an under-driven detector
+   * sits below the intercept. The multiply is 64-bit because a full-scale
+   * swing overflows int32 in microrad. */
   int64_t delta_uv = (int64_t)filtered - zero_uv;
   current.dose_microrad =
       (int32_t)((delta_uv * 1000000) / (int64_t)APP_DOSIMETER_UV_PER_RAD);
 
-  current.flags = DOSIMETER_FLAG_NOMINAL_CALIBRATION;
+  current.flags = 0U;
+  if (!zero_valid) {
+    current.flags |= DOSIMETER_FLAG_NOMINAL_CALIBRATION;
+  }
   if (maximum >= 4090U) {
     current.flags |= DOSIMETER_FLAG_SATURATED;
   }
   if (zero_remaining > 0U) {
     current.flags |= DOSIMETER_FLAG_ZEROING;
-  }
-  if (!zero_valid) {
-    current.flags |= DOSIMETER_FLAG_UNZEROED;
   }
 }
 
@@ -161,8 +171,8 @@ bool dosimeter_zero_in_progress(void) { return zero_remaining > 0U; }
 
 void dosimeter_set_zero(int32_t microvolts) {
   zero_remaining = 0U;
-  zero_uv = microvolts;
-  zero_valid = true;
+  zero_valid = microvolts != 0;
+  zero_uv = zero_valid ? microvolts : (int32_t)APP_DOSIMETER_INTERCEPT_UV;
   (void)settings_set_dosimeter_zero(microvolts);
 }
 

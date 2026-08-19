@@ -57,8 +57,9 @@ python .\tools\thermalcam_app.py
 - Run a flat-field correction on demand, and see the camera's shutter policy
   and the time since its last automatic correction.
 - Column-noise removal, sharpening, and image flips.
-- Dosimeter reading in rad, with a button that captures a new zero and stores it
-  in the camera's flash so it survives power cycles. Dose is written into saved
+- Dosimeter reading in rad from `DOSI = 0.1575 + 0.0025 * D_rad` volts at PA4,
+  with a button that captures a measured intercept for the unit and stores it in
+  the camera's flash so it survives power cycles. Dose is written into saved
   PNGs as text chunks, into the CSV header, and into a JSON sidecar; recordings
   get a sidecar carrying the dose trace for the whole clip.
 

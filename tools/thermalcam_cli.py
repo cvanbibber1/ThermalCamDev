@@ -81,11 +81,16 @@ DOSIMETER_FLAGS = {
     0x02: "saturated",
     0x04: "stale",
     0x08: "zeroing",
-    0x10: "unzeroed",
 }
 
-# 2.5 mV of change away from the stored zero is one rad.
+# Dosimeter transfer function at PA4, in volts:
+#     DOSI = 0.1575 + 0.0025 * D_rad
+INTERCEPT_UV = 157500
 UV_PER_RAD = 2500
+
+
+def rad_from_microvolts(microvolts: float, intercept_uv: float = INTERCEPT_UV) -> float:
+    return (microvolts - intercept_uv) / UV_PER_RAD
 
 
 def describe_dosimeter_flags(flags: int) -> str:
