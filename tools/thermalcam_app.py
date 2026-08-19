@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import sys
 import time
 from dataclasses import dataclass, field
@@ -85,6 +86,28 @@ class CameraControl:
             return "flat-field correction requested"
         except Exception as exc:  # noqa: BLE001
             return f"flat-field correction failed: {exc}"
+
+    def dosimeter(self) -> dict | None:
+        if not self.connected:
+            return None
+        try:
+            body = self._link.request(self._cli.OPCODES["dosimeter"])
+            return self._cli.decode_dosimeter(body)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def zero_dosimeter(self) -> str:
+        """Capture a new zero reference and persist it in the camera's flash."""
+        if not self.connected:
+            return "no control link"
+        try:
+            import struct
+
+            body = self._link.request(self._cli.OPCODES["dosimeter-zero"])
+            samples, = struct.unpack("<I", body[:4])
+            return f"zeroing, averaging {samples} samples"
+        except Exception as exc:  # noqa: BLE001
+            return f"zero failed: {exc}"
 
     def ffc_status(self) -> str | None:
         if not self.connected:
@@ -268,6 +291,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._previous = None
         self._hover = None
         self._image_buffer = None
+        self.dose = None
+        self._dose_log: list[dict] = []
 
         self._build_ui()
 
@@ -282,6 +307,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._status_timer = QtCore.QTimer(self)
         self._status_timer.timeout.connect(self.refresh_status)
         self._status_timer.start(2000)
+        self._dose_timer = QtCore.QTimer(self)
+        self._dose_timer.timeout.connect(self.refresh_dose)
+        self._dose_timer.start(500)
         self.refresh_status()
 
     def _build_ui(self) -> None:
@@ -387,6 +415,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.spot_list.setStyleSheet("font-family: Consolas, monospace;")
         measure.addWidget(self.spot_list)
         box.addWidget(measure_group)
+
+        dose_group = QtWidgets.QGroupBox("Dosimeter")
+        dose_layout = QtWidgets.QVBoxLayout(dose_group)
+        self.dose_label = QtWidgets.QLabel("no reading")
+        self.dose_label.setStyleSheet("font-size: 17pt; font-family: Consolas, monospace;")
+        dose_layout.addWidget(self.dose_label)
+        self.dose_detail = QtWidgets.QLabel("")
+        self.dose_detail.setStyleSheet("color: #888;")
+        self.dose_detail.setWordWrap(True)
+        dose_layout.addWidget(self.dose_detail)
+        self.zero_button = QtWidgets.QPushButton("Zero (store in camera flash)")
+        self.zero_button.clicked.connect(self.on_zero_dosimeter)
+        dose_layout.addWidget(self.zero_button)
+        box.addWidget(dose_group)
 
         camera_group = QtWidgets.QGroupBox("Camera")
         camera = QtWidgets.QVBoxLayout(camera_group)
@@ -594,19 +636,64 @@ class MainWindow(QtWidgets.QMainWindow):
     def on_open_folder(self) -> None:
         QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(self.output_dir)))
 
+    def _metadata(self) -> dict:
+        """Everything needed to interpret a capture later."""
+        unit = self.settings.unit
+        meta = {
+            "captured": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "camera": "FLIR Lepton 3.1R",
+            "width": ti.WIDTH,
+            "height": ti.HEIGHT,
+            "pixel_units": "centikelvin",
+            "palette": self.settings.colormap,
+            "contrast": self.settings.agc,
+        }
+        if self.frame is not None:
+            meta["scene_min_c"] = round(float(ti.counts_to_celsius(self.frame.min())), 2)
+            meta["scene_max_c"] = round(float(ti.counts_to_celsius(self.frame.max())), 2)
+            meta["spots"] = [
+                {"x": spot.x, "y": spot.y,
+                 "temperature": ti.format_temperature(self.frame[spot.y, spot.x], unit)}
+                for spot in self.settings.spots
+            ]
+        if self.dose is not None:
+            meta["dose_rad"] = round(self.dose["rad"], 4)
+            meta["dosimeter_uv"] = self.dose["filtered_voltage_uv"]
+            meta["dosimeter_zero_uv"] = self.dose["zero_uv"]
+            meta["dosimeter_flags"] = self.dose["flags"]
+        return meta
+
     def on_snapshot(self) -> None:
         if self.frame is None or self.display is None:
             return
         base = self.output_dir / f"thermal-{time.strftime('%Y%m%d-%H%M%S')}"
-        cv2.imwrite(str(base.with_suffix(".png")),
-                    cv2.cvtColor(self.display, cv2.COLOR_RGB2BGR))
+        meta = self._metadata()
+
+        # Written through PIL so the dose and scene values travel inside the
+        # PNG as text chunks; cv2.imwrite cannot carry metadata.
+        try:
+            from PIL import Image, PngImagePlugin
+
+            info = PngImagePlugin.PngInfo()
+            for key, value in meta.items():
+                info.add_text(key, value if isinstance(value, str) else json.dumps(value))
+            Image.fromarray(self.display).save(base.with_suffix(".png"), pnginfo=info)
+        except Exception:  # noqa: BLE001 - fall back to an image with no metadata
+            cv2.imwrite(str(base.with_suffix(".png")),
+                        cv2.cvtColor(self.display, cv2.COLOR_RGB2BGR))
+
         self.frame.astype("<u2").tofile(base.with_suffix(".raw"))
+        base.with_suffix(".json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
         # Per-pixel temperatures in a form a spreadsheet opens directly.
         with open(base.with_suffix(".csv"), "w", newline="", encoding="utf-8") as handle:
             writer = csv.writer(handle)
+            writer.writerow([f"# {json.dumps(meta)}"])
             for row in ti.counts_to_celsius(self.frame):
                 writer.writerow([f"{value:.2f}" for value in row])
-        self.statusBar().showMessage(f"saved {base.name}.png, .raw and .csv", 5000)
+
+        dose = f", {meta['dose_rad']:+.3f} rad" if "dose_rad" in meta else ""
+        self.statusBar().showMessage(f"saved {base.name}{dose}", 5000)
 
     def on_record(self, active: bool) -> None:
         if active:
@@ -629,6 +716,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.raw_check.isChecked():
                 self._raw_log = open(self._recording_path.with_suffix(".y16"), "wb")
             self._recorded = 0
+            self._dose_log = []
+            self._recording_started = time.strftime("%Y-%m-%dT%H:%M:%S")
             self.record_button.setText("Stop recording")
         else:
             if self._writer is not None:
@@ -638,8 +727,19 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._raw_log.close()
                 self._raw_log = None
             if self._recording_path is not None:
+                # Video containers cannot carry a dose trace, so it goes beside
+                # the file with the frame count needed to line it up.
+                meta = self._metadata()
+                meta["started"] = getattr(self, "_recording_started", meta["captured"])
+                meta["frames"] = self._recorded
+                meta["nominal_fps"] = 9.0
+                meta["dose_samples"] = self._dose_log
+                self._recording_path.with_suffix(".json").write_text(
+                    json.dumps(meta, indent=2), encoding="utf-8"
+                )
                 self.statusBar().showMessage(
-                    f"saved {self._recording_path.name}, {self._recorded} frames", 6000
+                    f"saved {self._recording_path.name}, {self._recorded} frames "
+                    f"and {len(self._dose_log)} dose samples", 6000
                 )
             self.record_button.setText("Start recording")
 
@@ -681,6 +781,37 @@ class MainWindow(QtWidgets.QMainWindow):
         self.link_label.setText(
             f"{self.control.port}    {status}" if status else str(self.control.port)
         )
+
+    def on_zero_dosimeter(self) -> None:
+        self.statusBar().showMessage(self.control.zero_dosimeter(), 5000)
+
+    def refresh_dose(self) -> None:
+        sample = self.control.dosimeter()
+        if sample is None:
+            self.zero_button.setEnabled(False)
+            self.dose_label.setText("no reading")
+            self.dose_detail.setText("control link offline")
+            return
+        self.zero_button.setEnabled(True)
+        self.dose = sample
+        if self._writer is not None:
+            self._dose_log.append(
+                {"t": sample["timestamp_ms"], "rad": sample["rad"],
+                 "uv": sample["filtered_voltage_uv"]}
+            )
+
+        self.dose_label.setText(f"{sample['rad']:+.3f} rad")
+        notes = self._cli_flags(sample["flags"])
+        self.dose_detail.setText(
+            f"{sample['filtered_voltage_uv']} uV, zero {sample['zero_uv']} uV"
+            + (f"\n{notes}" if notes else "")
+        )
+
+    @staticmethod
+    def _cli_flags(flags: int) -> str:
+        names = {0x02: "saturated", 0x04: "stale", 0x08: "zeroing...",
+                 0x10: "not zeroed yet"}
+        return ", ".join(name for bit, name in names.items() if flags & bit)
 
     def on_failure(self, message: str) -> None:
         QtWidgets.QMessageBox.critical(self, "Camera", message)

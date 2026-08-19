@@ -83,6 +83,12 @@ last-reviewed: 2026-08-18
   (180 s / 1.5 C). The firmware verifies the policy every 30 s and forces a RUN FFC only if
   the camera is in manual mode or a correction is overdue. The shutter-mode object is never
   written; block writes to it corrupt it on this module.
+- Flash-backed settings in the last sector (`src/settings.c`) hold the dosimeter zero and
+  survive reset and reflashing. Saves are deferred to the end of the task loop because the
+  sector erase stalls the core for over a second; VoSPI reacquires by itself afterwards.
+- The dosimeter reports dose relative to a stored zero at 2.5 mV per rad, signed so an
+  under-driven detector reads negative instead of wrapping. `dosimeter-zero` averages 32 ADC
+  blocks, about two seconds, and writes the result to flash.
 - `tools/render_frame.py` renders a raw Y16 frame with plateau/linear/equalize AGC,
   ironbow/rainbow/gray colormaps, column-stripe removal, and optional flat-field division.
 

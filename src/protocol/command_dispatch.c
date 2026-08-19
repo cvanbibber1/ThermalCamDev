@@ -4,6 +4,7 @@
 #include "board.h"
 #include "dosimeter.h"
 #include "health.h"
+#include "settings.h"
 #include "lepton_capture.h"
 #include "lepton_cci.h"
 #include "rs485.h"
@@ -268,8 +269,28 @@ static void dosimeter_status(wire_message_t *response) {
   append_u32(response, sample.vdda_mv);
   append_u32(response, sample.voltage_uv);
   append_u32(response, sample.filtered_voltage_uv);
-  append_u32(response, sample.radiation_millirad);
+  append_u32(response, (uint32_t)sample.zero_voltage_uv);
+  append_u32(response, (uint32_t)sample.dose_microrad);
   append_u32(response, sample.flags);
+  /* Saved-state fields let a host confirm a zero reached flash. */
+  append_u32(response, (uint32_t)(int32_t)settings_status());
+  append_u32(response, settings_save_count());
+}
+
+static void handle_dosimeter_zero(wire_message_t *response) {
+  set_result(response, dosimeter_begin_zero() ? COMMAND_OK : COMMAND_NOT_READY);
+  /* The averaging window, so a host knows how long to wait. */
+  append_u32(response, APP_DOSIMETER_ZERO_SAMPLES);
+}
+
+static void handle_dosimeter_set_zero(const wire_message_t *request,
+                                      wire_message_t *response) {
+  if (request->payload_length != 4U) {
+    set_result(response, COMMAND_BAD_LENGTH);
+    return;
+  }
+  dosimeter_set_zero((int32_t)wire_get_u32(&request->payload[0]));
+  set_result(response, COMMAND_OK);
 }
 
 bool command_dispatch(const wire_message_t *request, uint8_t local_address,
@@ -318,6 +339,12 @@ bool command_dispatch(const wire_message_t *request, uint8_t local_address,
       break;
     case OPCODE_DOSIMETER_STATUS:
       dosimeter_status(response);
+      break;
+    case OPCODE_DOSIMETER_ZERO:
+      handle_dosimeter_zero(response);
+      break;
+    case OPCODE_DOSIMETER_SET_ZERO:
+      handle_dosimeter_set_zero(request, response);
       break;
     case OPCODE_BUS_STATUS:
       set_result(response, COMMAND_OK);

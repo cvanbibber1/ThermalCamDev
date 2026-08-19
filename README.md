@@ -57,6 +57,10 @@ python .\tools\thermalcam_app.py
 - Run a flat-field correction on demand, and see the camera's shutter policy
   and the time since its last automatic correction.
 - Column-noise removal, sharpening, and image flips.
+- Dosimeter reading in rad, with a button that captures a new zero and stores it
+  in the camera's flash so it survives power cycles. Dose is written into saved
+  PNGs as text chunks, into the CSV header, and into a JSON sidecar; recordings
+  get a sidecar carrying the dose trace for the whole clip.
 
 The application holds the serial port for as long as it runs, so close it
 before using `thermalcam_cli.py` on the same camera. Only one process can

@@ -33,6 +33,8 @@ OPCODES = {
     "stream-status": 0x0200,
     "frame": 0x0201,
     "dosimeter": 0x0300,
+    "dosimeter-zero": 0x0301,
+    "dosimeter-set-zero": 0x0302,
     "bus-status": 0x0400,
     "assign": 0x0401,
 }
@@ -72,6 +74,47 @@ def decode_health(data: bytes) -> dict[str, int]:
     count = min(len(data) // 4, len(HEALTH_FIELDS))
     values = struct.unpack("<" + "I" * count, data[: count * 4])
     return dict(zip(HEALTH_FIELDS, values))
+
+
+DOSIMETER_FLAGS = {
+    0x01: "nominal-calibration",
+    0x02: "saturated",
+    0x04: "stale",
+    0x08: "zeroing",
+    0x10: "unzeroed",
+}
+
+# 2.5 mV of change away from the stored zero is one rad.
+UV_PER_RAD = 2500
+
+
+def describe_dosimeter_flags(flags: int) -> str:
+    names = [name for bit, name in DOSIMETER_FLAGS.items() if flags & bit]
+    return ",".join(names) if names else "none"
+
+
+def decode_dosimeter(body: bytes) -> dict:
+    timestamp, = struct.unpack("<I", body[:4])
+    mean, minimum, maximum, stddev = struct.unpack("<HHHH", body[4:12])
+    vdda, voltage, filtered = struct.unpack("<III", body[12:24])
+    zero, dose_microrad, flags = struct.unpack("<iiI", body[24:36])
+    settings_status, save_count = struct.unpack("<iI", body[36:44])
+    return {
+        "timestamp_ms": timestamp,
+        "raw_mean": mean,
+        "raw_min": minimum,
+        "raw_max": maximum,
+        "raw_stddev": stddev,
+        "vdda_mv": vdda,
+        "voltage_uv": voltage,
+        "filtered_voltage_uv": filtered,
+        "zero_uv": zero,
+        "dose_microrad": dose_microrad,
+        "rad": dose_microrad / 1e6,
+        "flags": flags,
+        "settings_status": settings_status,
+        "save_count": save_count,
+    }
 
 
 def crc32c(data: bytes) -> int:
@@ -245,6 +288,9 @@ def run(args: argparse.Namespace) -> None:
         elif args.command == "reg-write":
             link.request(opcode, struct.pack("<HH", args.register, args.value))
             print("ok")
+        elif args.command == "dosimeter-set-zero":
+            link.request(opcode, struct.pack("<i", args.microvolts))
+            print("ok")
         elif args.command == "assign":
             uid = bytes.fromhex(args.uid)
             if len(uid) != 12:
@@ -282,11 +328,24 @@ def run(args: argparse.Namespace) -> None:
                     f"temp_delta={delta / 100:.2f}C"
                 )
             elif args.command == "dosimeter":
-                timestamp, = struct.unpack("<I", body[:4])
-                mean, minimum, maximum, stddev = struct.unpack("<HHHH", body[4:12])
-                vdda, voltage, filtered, millirad, flags = struct.unpack("<IIIII", body[12:32])
-                print(f"t={timestamp}ms adc={mean} min={minimum} max={maximum} sd={stddev}")
-                print(f"vdda={vdda}mV voltage={voltage}uV filtered={filtered}uV radiation={millirad}mrad flags=0x{flags:X}")
+                sample = decode_dosimeter(body)
+                print(
+                    f"t={sample['timestamp_ms']}ms adc={sample['raw_mean']} "
+                    f"min={sample['raw_min']} max={sample['raw_max']} sd={sample['raw_stddev']}"
+                )
+                print(
+                    f"vdda={sample['vdda_mv']}mV voltage={sample['voltage_uv']}uV "
+                    f"filtered={sample['filtered_voltage_uv']}uV zero={sample['zero_uv']}uV"
+                )
+                print(
+                    f"dose={sample['rad']:.4f} rad  flags={describe_dosimeter_flags(sample['flags'])}  "
+                    f"settings={sample['settings_status']} saves={sample['save_count']}"
+                )
+            elif args.command == "dosimeter-zero":
+                samples, = struct.unpack("<I", body[:4])
+                print(f"zero capture started, averaging {samples} samples (about {samples / 15.6:.1f}s)")
+            elif args.command == "dosimeter-set-zero":
+                print("ok")
             else:
                 print_words(args.command, body)
     finally:
@@ -300,7 +359,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--address", type=lambda value: int(value, 0), default=1)
     parser.add_argument("--timeout", type=float, default=2.0)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    for command in ("info", "health", "discover", "lepton-status", "ffc", "ffc-status", "stream-status", "dosimeter", "bus-status"):
+    for command in ("info", "health", "discover", "lepton-status", "ffc", "ffc-status", "stream-status", "dosimeter", "dosimeter-zero", "bus-status"):
         subparsers.add_parser(command)
     get_parser = subparsers.add_parser("cci-get")
     get_parser.add_argument("command_id", type=lambda value: int(value, 0))
@@ -315,6 +374,8 @@ def parse_args() -> argparse.Namespace:
     write_parser = subparsers.add_parser("reg-write")
     write_parser.add_argument("register", type=lambda value: int(value, 0))
     write_parser.add_argument("value", type=lambda value: int(value, 0))
+    set_zero_parser = subparsers.add_parser("dosimeter-set-zero")
+    set_zero_parser.add_argument("microvolts", type=int, help="zero reference in uV")
     assign_parser = subparsers.add_parser("assign")
     assign_parser.add_argument("uid", help="12-byte MCU UID as 24 hex digits")
     assign_parser.add_argument("new_address", type=lambda value: int(value, 0))

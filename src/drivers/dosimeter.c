@@ -3,6 +3,7 @@
 #include "app_config.h"
 #include "board.h"
 #include "health.h"
+#include "settings.h"
 
 #include <string.h>
 
@@ -13,6 +14,10 @@
 static uint16_t adc_dma[ADC_DMA_WORDS];
 static volatile uint8_t pending_halves;
 static dosimeter_snapshot_t current;
+static int32_t zero_uv;
+static bool zero_valid;
+static uint16_t zero_remaining;
+static uint64_t zero_accumulator;
 
 static uint32_t integer_sqrt(uint64_t value) {
   uint64_t bit = (uint64_t)1U << 62;
@@ -34,6 +39,8 @@ static uint32_t integer_sqrt(uint64_t value) {
 
 bool dosimeter_init(void) {
   memset(&current, 0, sizeof(current));
+  zero_uv = settings_get()->dosimeter_zero_uv;
+  zero_valid = zero_uv != 0;
   current.flags = DOSIMETER_FLAG_NOMINAL_CALIBRATION | DOSIMETER_FLAG_STALE;
   if (HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma, ADC_DMA_WORDS) != HAL_OK) {
     return false;
@@ -75,9 +82,14 @@ static void process_half(uint8_t half) {
                           ? mean_square - (uint64_t)mean * mean
                           : 0U;
   uint32_t voltage_uv = (uint32_t)(((uint64_t)mean * vdda_mv * 1000U) / 4095U);
-  uint32_t filtered = current.filtered_voltage_uv == 0U
-                          ? voltage_uv
-                          : (current.filtered_voltage_uv * 7U + voltage_uv) / 8U;
+  /* Seeded from the first block so the reading is usable immediately rather
+   * than ramping up from zero. */
+  uint32_t filtered = voltage_uv;
+  if (current.filtered_voltage_uv != 0U) {
+    const uint32_t weight = 1U << APP_DOSIMETER_FILTER_SHIFT;
+    filtered = (uint32_t)(((uint64_t)current.filtered_voltage_uv *
+                               (weight - 1U) + voltage_uv) / weight);
+  }
 
   current.timestamp_ms = HAL_GetTick();
   current.raw_mean = (uint16_t)mean;
@@ -87,11 +99,35 @@ static void process_half(uint8_t half) {
   current.vdda_mv = vdda_mv;
   current.voltage_uv = voltage_uv;
   current.filtered_voltage_uv = filtered;
-  current.radiation_millirad = (uint32_t)(((uint64_t)filtered * 1000U) /
-                                          APP_DOSIMETER_UV_PER_RAD);
+
+  if (zero_remaining > 0U) {
+    /* Average the filtered signal rather than the instantaneous reading so a
+     * single noisy block cannot bias the reference. */
+    zero_accumulator += filtered;
+    --zero_remaining;
+    if (zero_remaining == 0U) {
+      zero_uv = (int32_t)(zero_accumulator / APP_DOSIMETER_ZERO_SAMPLES);
+      zero_valid = true;
+      (void)settings_set_dosimeter_zero(zero_uv);
+    }
+  }
+
+  current.zero_voltage_uv = zero_uv;
+  /* Signed difference in microvolts, then microrad at 2.5 mV per rad. The
+   * multiply is done in 64-bit because a full-scale swing overflows int32. */
+  int64_t delta_uv = (int64_t)filtered - zero_uv;
+  current.dose_microrad =
+      (int32_t)((delta_uv * 1000000) / (int64_t)APP_DOSIMETER_UV_PER_RAD);
+
   current.flags = DOSIMETER_FLAG_NOMINAL_CALIBRATION;
   if (maximum >= 4090U) {
     current.flags |= DOSIMETER_FLAG_SATURATED;
+  }
+  if (zero_remaining > 0U) {
+    current.flags |= DOSIMETER_FLAG_ZEROING;
+  }
+  if (!zero_valid) {
+    current.flags |= DOSIMETER_FLAG_UNZEROED;
   }
 }
 
@@ -110,6 +146,24 @@ void dosimeter_task(void) {
   if ((HAL_GetTick() - current.timestamp_ms) > 500U) {
     current.flags |= DOSIMETER_FLAG_STALE;
   }
+}
+
+bool dosimeter_begin_zero(void) {
+  if (zero_remaining > 0U) {
+    return false;
+  }
+  zero_accumulator = 0U;
+  zero_remaining = APP_DOSIMETER_ZERO_SAMPLES;
+  return true;
+}
+
+bool dosimeter_zero_in_progress(void) { return zero_remaining > 0U; }
+
+void dosimeter_set_zero(int32_t microvolts) {
+  zero_remaining = 0U;
+  zero_uv = microvolts;
+  zero_valid = true;
+  (void)settings_set_dosimeter_zero(microvolts);
 }
 
 void dosimeter_get_snapshot(dosimeter_snapshot_t *snapshot) {

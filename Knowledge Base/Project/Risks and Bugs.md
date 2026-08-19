@@ -76,7 +76,16 @@ last-reviewed: 2026-08-18
 - [ ] PC13 VSYNC timing/cadence must be measured on the actual 3.1R.
 - [ ] The FT2232 Channel B console UART has no assigned pins because USART2 is the field bus.
 - [ ] Confirm whether `rad` denotes accumulated dose or a rate quantity in the dosimeter
-  source and define integration/reset semantics.
+  source and define integration/reset semantics. The firmware currently reports an
+  instantaneous reading derived from the voltage offset, not an integral over time.
+- [ ] **The dosimeter input is under-driven.** Measured 2026-08-19 the signal sits at 8 of
+  4095 ADC counts, where one count is about 730 uV, or 0.29 rad. After the two second
+  filter the reading still wanders about 271 uV, roughly 0.11 rad, over ten seconds, and it
+  drifts by several hundred microvolts over minutes. Dose is therefore only meaningful to
+  about a tenth of a rad, and re-zeroing is needed after the input is properly driven.
+- [ ] A settings save stalls the core for the flash sector erase, which is over a second on
+  this part. USB is unresponsive for that time; the host has not been observed to drop the
+  device, but this has only been exercised a few times.
 - [ ] Continuous video from more than one camera exceeds the conservative field-bus budget.
 - [x] The USART2 field bus is capped at 921600 baud (`APP_RS485_BAUD`). Lower
   fallback rates still need qualification on hardware.

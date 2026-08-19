@@ -31,7 +31,19 @@
 #define APP_LEPTON_CHUNK_TIMEOUT_MS 50U
 #define APP_RS485_BAUD 921600U
 #define APP_NODE_ADDRESS_DEFAULT 1U
+/* Dosimeter conversion: 2.5 mV of change away from the stored zero is one rad
+ * after the external 25x gain stage. */
 #define APP_DOSIMETER_UV_PER_RAD 2500U
+/* Samples averaged when capturing a new zero. The ADC block rate is about
+ * 15 Hz, so this settles the reference over roughly two seconds instead of
+ * trusting one noisy reading. */
+#define APP_DOSIMETER_ZERO_SAMPLES 32U
+/* Exponential filter depth on the dosimeter voltage, as a right shift, so the
+ * weight is 1/2^N per ADC block. With the detector under-driven the signal
+ * sits near the bottom of the range where one ADC count is about 730 uV, or
+ * 0.29 rad, so the reading needs heavy averaging to be usable at all. At the
+ * 15.6 Hz block rate a shift of 5 gives roughly a two second time constant. */
+#define APP_DOSIMETER_FILTER_SHIFT 5U
 
 #define APP_FRAME_WIDTH 160U
 #define APP_FRAME_HEIGHT 120U
