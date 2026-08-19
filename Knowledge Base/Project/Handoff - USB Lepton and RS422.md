@@ -180,6 +180,19 @@ mapping, destriping, and temperature conversion shared with
 mode, and unit, including snapshot (PNG, raw, CSV) and recording (MP4 plus
 optional raw Y16), and the control link degrades cleanly when CDC is absent.
 
+Verified on hardware 2026-08-19: live preview at 8.8 distinct frames per
+second, automatic hottest and coldest markers, spot readings, and a live
+control link reporting the shutter policy and time since the last automatic
+correction. The two transports agree on temperature - a CDC frame and a UVC
+frame taken seconds apart read 16.33/29.74 C and 16.31/30.03 C, a 0.07 K
+difference in scene mean, which is drift between the grabs rather than a
+calibration gap.
+
+Both interfaces are single-client: the application holds the serial port while
+it runs, so the command-line tool cannot use the same camera at the same time,
+and a second video client cannot open the pin. An abandoned client keeps the
+video interface locked until its process exits.
+
 Branches parked for the routes not taken: `radiometric/cdc-frames`,
 `radiometric/format-switch`, `radiometric/second-pin`, `uvc/yuy2-windows-camera`.
 

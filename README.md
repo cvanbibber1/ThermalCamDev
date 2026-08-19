@@ -58,6 +58,10 @@ python .\tools\thermalcam_app.py
   and the time since its last automatic correction.
 - Column-noise removal, sharpening, and image flips.
 
+The application holds the serial port for as long as it runs, so close it
+before using `thermalcam_cli.py` on the same camera. Only one process can
+stream from the video interface at a time as well.
+
 Supporting tools:
 
 ```powershell

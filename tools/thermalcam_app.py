@@ -156,14 +156,18 @@ class FrameGrabber(QtCore.QThread):
         index = self._index if self._index is not None else self.probe()
         if index is None:
             self.failed.emit(
-                "No Y16 camera found.\n\nCheck that the camera is connected and "
-                "that the radiometric firmware build is flashed."
+                "No Y16 camera found.\n\nCheck that the camera is connected, that "
+                "no other application is already streaming from it, and that the "
+                "radiometric firmware build is flashed."
             )
             return
 
         capture = cv2.VideoCapture(index, cv2.CAP_DSHOW)
         if not capture.isOpened():
-            self.failed.emit(f"Could not open video device {index}.")
+            self.failed.emit(
+                f"Could not open video device {index}.\n\nAnother application is "
+                "probably streaming from it already."
+            )
             return
         self._configure(capture)
 
@@ -260,6 +264,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._recorded = 0
         self._recording_path = None
         self._times: list[float] = []
+        self._unique_times: list[float] = []
+        self._previous = None
         self._hover = None
         self._image_buffer = None
 
@@ -447,9 +453,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def on_frame(self, frame) -> None:
         frame = self._oriented(frame)
         self.frame = frame
-        self._times.append(time.time())
+        now = time.time()
+        self._times.append(now)
         if len(self._times) > 60:
             self._times.pop(0)
+        # The video pin delivers about 13 payloads a second but the camera only
+        # produces about 9 distinct frames, so report the rate that matters.
+        if self._previous is None or not np.array_equal(frame, self._previous):
+            self._unique_times.append(now)
+            if len(self._unique_times) > 40:
+                self._unique_times.pop(0)
+        self._previous = frame
 
         source = ti.destripe(frame) if self.settings.destripe else frame
         mode = self.settings.agc
@@ -536,9 +550,16 @@ class MainWindow(QtWidgets.QMainWindow):
         painter.drawLine(QtCore.QPointF(px, py - radius), QtCore.QPointF(px, py + radius))
 
         rect = painter.fontMetrics().boundingRect(text).adjusted(-4, -2, 4, 2)
-        # Keep the label on screen when the marker sits near an edge.
-        left = min(max(px + radius + 3.0, 0.0), float(pixmap.width() - rect.width()))
-        top = min(max(py - radius - rect.height(), 0.0), float(pixmap.height() - rect.height()))
+        # Place the label beside the crosshair, flipping to the other side
+        # rather than letting it ride the edge of the frame.
+        left = px + radius + 3.0
+        if left + rect.width() > pixmap.width():
+            left = px - radius - 3.0 - rect.width()
+        top = py - radius - rect.height()
+        if top < 0.0:
+            top = py + radius
+        left = min(max(left, 0.0), float(pixmap.width() - rect.width()))
+        top = min(max(top, 0.0), float(pixmap.height() - rect.height()))
         rect.moveTo(int(left), int(top))
         painter.fillRect(rect, QtGui.QColor(0, 0, 0, 160))
         painter.drawText(rect, QtCore.Qt.AlignCenter, text)
@@ -634,10 +655,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._hover is not None:
             x, y = self._hover
             parts.append(f"cursor {ti.format_temperature(self.frame[y, x], unit)}")
-        if len(self._times) > 1:
-            span = self._times[-1] - self._times[0]
+        if len(self._unique_times) > 1:
+            span = self._unique_times[-1] - self._unique_times[0]
             if span > 0:
-                parts.append(f"{(len(self._times) - 1) / span:.1f} fps")
+                parts.append(f"{(len(self._unique_times) - 1) / span:.1f} fps")
         if self._writer is not None:
             parts.append(f"recording {self._recorded}")
         self.readout.setText("    ".join(parts))
