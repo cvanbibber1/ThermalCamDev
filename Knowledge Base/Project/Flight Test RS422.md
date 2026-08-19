@@ -78,6 +78,29 @@ suspecting the wiring; neither is fixed by the specification.
   node to a bus carrying other transmitters until that pull-up is removed and
   reset-default DE low is confirmed on hardware.
 
+## USB and RS-422 run together
+
+Confirmed 2026-08-19 on the flight build: USB CDC commands, USB CDC frame
+transfer, USB video at 8.8 frames/s, and RS-422 transmission all work at the
+same time. RS-422 was sending while USB video ran, at 1 LRT/s and 24 HRT/s.
+
+An earlier report that USB had stopped responding was not the firmware. A
+previous instance of the application had been left running across a firmware
+load; the device re-enumerated underneath it, and the application sat on the
+now-dead serial handle, which blocked every other client. The application now
+drops and reconnects the control link instead of holding a dead one.
+
+### Known limitation: video after a device reset
+
+The control link recovers from a reset or firmware load by itself. Video does
+not always. When the camera re-enumerates, DirectShow can leave the reading
+thread blocked inside `read()` on the stale handle; the thread cannot detect
+this, and it keeps hold of the device. A watchdog in the window notices that
+frames have stopped, starts a fresh reader and reports the stall, but it cannot
+free a device held by a blocked driver call, so the application has to be
+restarted to get video back after a reflash. This affects development only:
+the camera is not reset during normal use.
+
 ## Still to do for flight
 
 - Decode the command payload once DICE defines it; commands are currently

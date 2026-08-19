@@ -40,13 +40,38 @@ except ImportError:  # pragma: no cover - reported at runtime
 class CameraControl:
     """Optional CDC control link. Video works whether or not this connects."""
 
+    RETRY_SECONDS = 2.0
+
     def __init__(self) -> None:
         self._link = None
         self._cli = None
+        self._preferred = None
+        self._last_attempt = 0.0
         self.port = None
         self.error = None
 
+    def ensure(self) -> bool:
+        """Reconnect if the link dropped.
+
+        The device re-enumerates on every reset and firmware load, which
+        invalidates the handle. Without this the application keeps a dead port
+        open, which also stops anything else from using it.
+        """
+        if self._link is not None:
+            return True
+        now = time.time()
+        if (now - self._last_attempt) < self.RETRY_SECONDS:
+            return False
+        self._last_attempt = now
+        return self.connect(self._preferred)
+
+    def _drop(self, reason: str) -> None:
+        self.close()
+        self.error = reason
+        self.port = None
+
     def connect(self, port: str | None) -> bool:
+        self._preferred = port
         try:
             import importlib.util
 
@@ -78,52 +103,47 @@ class CameraControl:
     def connected(self) -> bool:
         return self._link is not None
 
-    def run_ffc(self) -> str:
-        if not self.connected:
-            return "no control link"
+    def _request(self, name: str, payload: bytes = b"") -> bytes | None:
+        """One command, dropping the link on failure so it gets retried."""
+        if not self.ensure():
+            return None
         try:
-            self._link.request(self._cli.OPCODES["ffc"])
-            return "flat-field correction requested"
-        except Exception as exc:  # noqa: BLE001
-            return f"flat-field correction failed: {exc}"
+            return self._link.request(self._cli.OPCODES[name], payload)
+        except Exception as exc:  # noqa: BLE001 - shown in the status bar
+            self._drop(f"link lost: {exc}")
+            return None
+
+    def run_ffc(self) -> str:
+        if self._request("ffc") is None:
+            return f"flat-field correction failed: {self.error or 'no control link'}"
+        return "flat-field correction requested"
 
     def dosimeter(self) -> dict | None:
-        if not self.connected:
-            return None
-        try:
-            body = self._link.request(self._cli.OPCODES["dosimeter"])
-            return self._cli.decode_dosimeter(body)
-        except Exception:  # noqa: BLE001
-            return None
+        body = self._request("dosimeter")
+        return None if body is None else self._cli.decode_dosimeter(body)
 
     def zero_dosimeter(self) -> str:
         """Capture a new zero reference and persist it in the camera's flash."""
-        if not self.connected:
-            return "no control link"
-        try:
-            import struct
+        import struct
 
-            body = self._link.request(self._cli.OPCODES["dosimeter-zero"])
-            samples, = struct.unpack("<I", body[:4])
-            return f"zeroing, averaging {samples} samples"
-        except Exception as exc:  # noqa: BLE001
-            return f"zero failed: {exc}"
+        body = self._request("dosimeter-zero")
+        if body is None:
+            return f"zero failed: {self.error or 'no control link'}"
+        samples, = struct.unpack("<I", body[:4])
+        return f"zeroing, averaging {samples} samples"
 
     def ffc_status(self) -> str | None:
-        if not self.connected:
-            return None
-        try:
-            import struct
+        import struct
 
-            body = self._link.request(self._cli.OPCODES["ffc-status"])
-            mode, _lock, elapsed, period, _delta, _state = struct.unpack("<IIIIIi", body[:24])
-            names = {0: "manual", 1: "auto", 2: "external"}
-            return (
-                f"shutter {names.get(mode, mode)}, last correction "
-                f"{elapsed / 1000:.0f}s ago of {period / 1000:.0f}s"
-            )
-        except Exception:  # noqa: BLE001
+        body = self._request("ffc-status")
+        if body is None:
             return None
+        mode, _lock, elapsed, period, _delta, _state = struct.unpack("<IIIIIi", body[:24])
+        names = {0: "manual", 1: "auto", 2: "external"}
+        return (
+            f"shutter {names.get(mode, mode)}, last correction "
+            f"{elapsed / 1000:.0f}s ago of {period / 1000:.0f}s"
+        )
 
     def close(self) -> None:
         if self._link is not None:
@@ -143,7 +163,11 @@ class FrameGrabber(QtCore.QThread):
     """
 
     frame_ready = QtCore.Signal(object)
-    failed = QtCore.Signal(str)
+    status = QtCore.Signal(str)
+    reconnected = QtCore.Signal()
+
+    """Consecutive bad reads before the device is treated as gone."""
+    MISS_LIMIT = 40
 
     def __init__(self, index: int | None) -> None:
         super().__init__()
@@ -156,6 +180,32 @@ class FrameGrabber(QtCore.QThread):
         capture.set(cv2.CAP_PROP_FRAME_WIDTH, ti.WIDTH)
         capture.set(cv2.CAP_PROP_FRAME_HEIGHT, ti.HEIGHT)
 
+    @staticmethod
+    def _is_y16(frame) -> bool:
+        """Whether this is a frame from our camera at all.
+
+        Presence of the device is judged on format only. Content must not come
+        into it: the camera sends a blank placeholder for the ten seconds or so
+        its sensor takes to boot, and treating that as absence would make the
+        application hunt for a camera that is right there.
+        """
+        return (
+            frame is not None
+            and frame.dtype == np.uint16
+            and frame.shape == (ti.HEIGHT, ti.WIDTH)
+        )
+
+    @staticmethod
+    def _has_image(frame) -> bool:
+        """Whether the frame carries real radiometric data.
+
+        The placeholder, and a frame caught part-written after a reconnect,
+        contain zero-valued pixels. Zero is absolute zero in this encoding, so
+        such a frame is not measurable data; displaying one reports -273 C and
+        stretches the automatic contrast over a range that does not exist.
+        """
+        return bool(frame.min() > 0)
+
     @classmethod
     def probe(cls) -> int | None:
         for index in range(8):
@@ -166,44 +216,64 @@ class FrameGrabber(QtCore.QThread):
             cls._configure(capture)
             ok, frame = capture.read()
             capture.release()
-            if (
-                ok
-                and frame is not None
-                and frame.dtype == np.uint16
-                and frame.shape == (ti.HEIGHT, ti.WIDTH)
-            ):
+            if ok and cls._is_y16(frame):
                 return index
         return None
 
+    def _wait(self, seconds: float) -> None:
+        """Sleep in slices so stop() stays responsive."""
+        deadline = time.time() + seconds
+        while self._running and time.time() < deadline:
+            self.msleep(100)
+
     def run(self) -> None:
-        index = self._index if self._index is not None else self.probe()
-        if index is None:
-            self.failed.emit(
-                "No Y16 camera found.\n\nCheck that the camera is connected, that "
-                "no other application is already streaming from it, and that the "
-                "radiometric firmware build is flashed."
-            )
-            return
+        """Open the camera and keep it open, reconnecting as needed.
 
-        capture = cv2.VideoCapture(index, cv2.CAP_DSHOW)
-        if not capture.isOpened():
-            self.failed.emit(
-                f"Could not open video device {index}.\n\nAnother application is "
-                "probably streaming from it already."
-            )
-            return
-        self._configure(capture)
+        The device disappears and comes back on every reset and firmware load.
+        Reopening rather than giving up means the window recovers by itself,
+        and more importantly it does not sit on a dead handle that would block
+        the next client from using the camera at all.
+        """
+        while self._running:
+            index = self._index if self._index is not None else self.probe()
+            if index is None:
+                self.status.emit("looking for the camera")
+                self._wait(1.5)
+                continue
 
-        try:
-            while self._running:
-                ok, frame = capture.read()
-                if not ok or frame is None:
-                    continue
-                if frame.dtype != np.uint16 or frame.shape != (ti.HEIGHT, ti.WIDTH):
-                    continue
-                self.frame_ready.emit(frame.astype(np.float64))
-        finally:
-            capture.release()
+            capture = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+            if not capture.isOpened():
+                capture.release()
+                self.status.emit("camera is busy in another application")
+                self._wait(1.5)
+                continue
+            self._configure(capture)
+            self.status.emit("connected")
+
+            misses = 0
+            self.reconnected.emit()
+            try:
+                while self._running:
+                    ok, frame = capture.read()
+                    if not ok or not self._is_y16(frame):
+                        misses += 1
+                        if misses >= self.MISS_LIMIT:
+                            break
+                        continue
+                    misses = 0
+                    if not self._has_image(frame):
+                        # Device is present but its sensor is not imaging yet.
+                        # Skip quietly; whether frames are flowing is judged by
+                        # the window from the arrival times, so there is no
+                        # state here that can be left stale.
+                        continue
+                    self.frame_ready.emit(frame.astype(np.float64))
+            finally:
+                capture.release()
+
+            if self._running:
+                self.status.emit("camera disconnected, reconnecting")
+                self._wait(1.0)
 
     def stop(self) -> None:
         self._running = False
@@ -291,6 +361,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._previous = None
         self._hover = None
         self._image_buffer = None
+        self._link_state = "starting"
+        self._restarting = False
+        self._abandoned: list = []
         self.dose = None
         self._dose_log: list[dict] = []
 
@@ -299,14 +372,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.control = CameraControl()
         self.control.connect(args.port)
 
-        self.grabber = FrameGrabber(args.index)
-        self.grabber.frame_ready.connect(self.on_frame)
-        self.grabber.failed.connect(self.on_failure)
-        self.grabber.start()
+        self._grabber_index = args.index
+        self._start_grabber()
 
         self._status_timer = QtCore.QTimer(self)
         self._status_timer.timeout.connect(self.refresh_status)
         self._status_timer.start(2000)
+        self._liveness_timer = QtCore.QTimer(self)
+        self._liveness_timer.timeout.connect(self.refresh_liveness)
+        self._liveness_timer.start(1000)
         self._dose_timer = QtCore.QTimer(self)
         self._dose_timer.timeout.connect(self.refresh_dose)
         self._dose_timer.start(500)
@@ -324,6 +398,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.readout = QtWidgets.QLabel("waiting for frames")
         self.statusBar().addWidget(self.readout, 1)
+        self.video_label = QtWidgets.QLabel("starting")
+        self.statusBar().addPermanentWidget(self.video_label)
         self.link_label = QtWidgets.QLabel("")
         self.statusBar().addPermanentWidget(self.link_label)
 
@@ -771,6 +847,13 @@ class MainWindow(QtWidgets.QMainWindow):
             )
         )
 
+    def _start_grabber(self) -> None:
+        self.grabber = FrameGrabber(self._grabber_index)
+        self.grabber.frame_ready.connect(self.on_frame)
+        self.grabber.status.connect(self.on_video_status)
+        self.grabber.reconnected.connect(self.on_reconnected)
+        self.grabber.start()
+
     def refresh_status(self) -> None:
         if not self.control.connected:
             self.link_label.setText(f"control link: {self.control.error or 'offline'}")
@@ -813,8 +896,61 @@ class MainWindow(QtWidgets.QMainWindow):
                  0x10: "not zeroed yet"}
         return ", ".join(name for bit, name in names.items() if flags & bit)
 
-    def on_failure(self, message: str) -> None:
-        QtWidgets.QMessageBox.critical(self, "Camera", message)
+    STALL_RESTART_SECONDS = 8.0
+
+    def refresh_liveness(self) -> None:
+        """Report the video state, and restart a capture that has stalled.
+
+        When the camera re-enumerates, which happens on every reset and
+        firmware load, DirectShow can leave the reading thread blocked inside
+        read() on the dead handle. That thread cannot notice it is stuck, so
+        the check has to come from here.
+        """
+        if self._link_state != "connected":
+            return
+        if not self._times:
+            self.video_label.setText("waiting for an image")
+            return
+
+        idle = time.time() - self._times[-1]
+        if idle < 2.0:
+            self.video_label.setText("live")
+            return
+
+        self.video_label.setText(f"no image for {idle:.0f}s")
+        if idle < self.STALL_RESTART_SECONDS or self._restarting:
+            return
+
+        self._restarting = True
+        self.statusBar().showMessage("video stalled, restarting capture", 4000)
+        old = self.grabber
+        try:
+            old.frame_ready.disconnect()
+            old.status.disconnect()
+            old.reconnected.disconnect()
+        except (RuntimeError, TypeError):
+            pass
+        old.stop()
+        if old.isRunning():
+            # Blocked inside the driver. It cannot be killed safely, and
+            # letting it be collected while running aborts Qt, so keep a
+            # reference and leave it alone.
+            self._abandoned.append(old)
+        self._start_grabber()
+        self._restarting = False
+
+    def on_reconnected(self) -> None:
+        """Rate history from before a dropout would misreport the new stream."""
+        self._times.clear()
+        self._unique_times.clear()
+        self._previous = None
+
+    def on_video_status(self, message: str) -> None:
+        self._link_state = message
+        self.video_label.setText("live" if message == "connected" else message)
+        if message != "connected":
+            # Stale readings would otherwise look like live ones.
+            self.readout.setText(message)
 
     def closeEvent(self, event) -> None:
         if self._writer is not None:

@@ -66,6 +66,10 @@ The application holds the serial port for as long as it runs, so close it
 before using `thermalcam_cli.py` on the same camera. Only one process can
 stream from the video interface at a time as well.
 
+Both links are re-established automatically if the camera disappears and comes
+back. After a firmware load the video reader can be left blocked inside the
+capture driver holding the device, in which case restart the application.
+
 Supporting tools:
 
 ```powershell
