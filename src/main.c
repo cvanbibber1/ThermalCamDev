@@ -3,7 +3,7 @@
 #include "dosimeter.h"
 #include "health.h"
 #include "lepton_capture.h"
-#include "rs485.h"
+#include "stp_link.h"
 #include "settings.h"
 #include "usb_device.h"
 
@@ -24,7 +24,9 @@ int main(void) {
   if (!usb_device_init()) {
     board_fatal(0xA002U);
   }
-  if (!rs485_init()) {
+  /* USART2 speaks the STP/DICE packet protocol on this branch, not the
+   * development COBS transport. */
+  if (!stp_link_init()) {
     board_fatal(0xA003U);
   }
 
@@ -32,7 +34,7 @@ int main(void) {
     lepton_capture_task();
     dosimeter_task();
     usb_device_task();
-    rs485_task();
+    stp_link_task();
     /* Last: a save stalls the core for the sector erase, so let the transports
      * finish delivering the response that requested it first. */
     settings_task();

@@ -7,7 +7,7 @@
 #include "settings.h"
 #include "lepton_capture.h"
 #include "lepton_cci.h"
-#include "rs485.h"
+#include "stp_link.h"
 
 #include <string.h>
 
@@ -188,7 +188,7 @@ static bool assign_bus_address(const wire_message_t *request, wire_message_t *re
     }
   }
   uint8_t address = request->payload[12];
-  set_result(response, rs485_set_address(address) ? COMMAND_OK : COMMAND_BAD_LENGTH);
+  set_result(response, stp_link_set_target_id(address) ? COMMAND_OK : COMMAND_BAD_LENGTH);
   if ((response->flags & WIRE_FLAG_ERROR) == 0U) {
     response->payload[response->payload_length++] = address;
   }
@@ -346,11 +346,23 @@ bool command_dispatch(const wire_message_t *request, uint8_t local_address,
     case OPCODE_DOSIMETER_SET_ZERO:
       handle_dosimeter_set_zero(request, response);
       break;
-    case OPCODE_BUS_STATUS:
+    case OPCODE_BUS_STATUS: {
+      stp_link_status_t link;
+      stp_link_get_status(&link);
       set_result(response, COMMAND_OK);
       append_u32(response, APP_RS485_BAUD);
-      response->payload[response->payload_length++] = local_address;
+      response->payload[response->payload_length++] = link.target_id;
+      response->payload[response->payload_length++] = link.hrt_enabled ? 1U : 0U;
+      append_u32(response, link.commands_received);
+      append_u32(response, link.lrt_requests);
+      append_u32(response, link.lrt_sent);
+      append_u32(response, link.hrt_sent);
+      append_u32(response, link.rejected_target);
+      append_u32(response, link.crc_errors);
+      append_u32(response, link.type_errors);
+      append_u32(response, link.coarse_time);
       break;
+    }
     case OPCODE_BUS_ASSIGN_ADDRESS:
       return assign_bus_address(request, response);
     default:

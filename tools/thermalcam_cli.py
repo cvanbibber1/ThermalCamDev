@@ -309,6 +309,14 @@ def run(args: argparse.Namespace) -> None:
             elif args.command == "health":
                 for name, value in decode_health(body).items():
                     print(f"{name}={value}")
+            elif args.command == "bus-status":
+                baud, target, hrt = struct.unpack("<IBB", body[:6])
+                (commands, lrt_req, lrt_sent, hrt_sent, other,
+                 crc_err, type_err, coarse) = struct.unpack("<IIIIIIII", body[6:38])
+                print(f"baud={baud} target_id={target} hrt={'on' if hrt else 'off'} coarse_time={coarse}")
+                print(f"rx: commands={commands} lrt_requests={lrt_req} other_target={other} "
+                      f"crc_errors={crc_err} type_errors={type_err}")
+                print(f"tx: lrt={lrt_sent} hrt={hrt_sent}")
             elif args.command == "lepton-status":
                 state, _, cci, ffc, _, generation, vsync = struct.unpack("<BBhhHII", body[:16])
                 states = {

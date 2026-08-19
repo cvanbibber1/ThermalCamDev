@@ -2,6 +2,7 @@
 
 #include "protocol/cobs.h"
 #include "protocol/crc.h"
+#include "protocol/stp_protocol.h"
 #include "protocol/wire_protocol.h"
 #include "vospi_parser.h"
 
@@ -144,6 +145,143 @@ static void test_vospi_invalid_segment_resets_sequence(void) {
   TEST_ASSERT_EQUAL_UINT8(1U, parser.expected_segment);
 }
 
+
+/* ------------------------------------------------------------- STP RS-422 -- */
+
+/* Build a DICE-to-experiment packet the way the flight computer would. */
+static size_t make_request(uint8_t *out, uint8_t type, uint8_t target,
+                           uint32_t coarse, uint16_t fine) {
+  size_t total = (type == STP_TYPE_COMMAND) ? STP_COMMAND_SIZE : STP_REQUEST_SIZE;
+  memset(out, 0, total);
+  stp_put_u32(&out[0], STP_SYNC_WORD);
+  stp_put_u32(&out[4], coarse);
+  stp_put_u16(&out[8], fine);
+  out[10] = type;
+  out[11] = target;
+  stp_put_u16(&out[total - 2U], stp_crc16(&out[4], total - 6U));
+  return total;
+}
+
+static bool feed(stp_receiver_t *rx, const uint8_t *data, size_t length,
+                 stp_rx_packet_t *packet) {
+  bool got = false;
+  for (size_t i = 0U; i < length; ++i) {
+    if (stp_receiver_push(rx, data[i], packet)) {
+      got = true;
+    }
+  }
+  return got;
+}
+
+static void test_stp_accepts_each_request_type(void) {
+  const uint8_t types[] = {STP_TYPE_COMMAND, STP_TYPE_LRT, STP_TYPE_HRT_STOP,
+                           STP_TYPE_HRT_STOP_WITH_LOSS, STP_TYPE_HRT_GO};
+  const stp_rx_kind_t kinds[] = {STP_RX_COMMAND, STP_RX_LRT_REQUEST,
+                                 STP_RX_HRT_STOP, STP_RX_HRT_STOP_WITH_LOSS,
+                                 STP_RX_HRT_GO};
+  for (size_t i = 0U; i < sizeof(types); ++i) {
+    stp_receiver_t rx;
+    stp_receiver_init(&rx);
+    uint8_t packet[STP_COMMAND_SIZE];
+    size_t length = make_request(packet, types[i], 0x07U, 0x11223344U, 0x5566U);
+    stp_rx_packet_t parsed;
+    TEST_ASSERT_TRUE(feed(&rx, packet, length, &parsed));
+    TEST_ASSERT_EQUAL_INT(kinds[i], parsed.kind);
+    TEST_ASSERT_EQUAL_UINT8(0x07U, parsed.target_id);
+    TEST_ASSERT_EQUAL_UINT32(0x11223344U, parsed.coarse_time);
+    TEST_ASSERT_EQUAL_UINT16(0x5566U, parsed.fine_time);
+  }
+}
+
+static void test_stp_command_exposes_payload(void) {
+  stp_receiver_t rx;
+  stp_receiver_init(&rx);
+  uint8_t packet[STP_COMMAND_SIZE];
+  (void)make_request(packet, STP_TYPE_COMMAND, 1U, 0U, 0U);
+  for (size_t i = 0U; i < STP_COMMAND_PAYLOAD_SIZE; ++i) {
+    packet[STP_COMMAND_PAYLOAD_OFFSET + i] = (uint8_t)(i + 1U);
+  }
+  stp_put_u16(&packet[STP_COMMAND_SIZE - 2U],
+              stp_crc16(&packet[4], STP_COMMAND_SIZE - 6U));
+
+  stp_rx_packet_t parsed;
+  TEST_ASSERT_TRUE(feed(&rx, packet, STP_COMMAND_SIZE, &parsed));
+  TEST_ASSERT_EQUAL_UINT16(STP_COMMAND_PAYLOAD_SIZE, parsed.payload_length);
+  TEST_ASSERT_EQUAL_UINT8(1U, parsed.payload[0]);
+  TEST_ASSERT_EQUAL_UINT8(STP_COMMAND_PAYLOAD_SIZE, parsed.payload[STP_COMMAND_PAYLOAD_SIZE - 1U]);
+}
+
+static void test_stp_rejects_corrupted_packet(void) {
+  stp_receiver_t rx;
+  stp_receiver_init(&rx);
+  uint8_t packet[STP_COMMAND_SIZE];
+  size_t length = make_request(packet, STP_TYPE_LRT, 1U, 0U, 0U);
+  packet[12] ^= 0xFFU; /* inside the CRC coverage */
+  stp_rx_packet_t parsed;
+  TEST_ASSERT_FALSE(feed(&rx, packet, length, &parsed));
+  TEST_ASSERT_EQUAL_UINT32(1U, rx.crc_errors);
+  TEST_ASSERT_EQUAL_UINT32(0U, rx.accepted);
+}
+
+static void test_stp_resynchronizes_after_noise(void) {
+  stp_receiver_t rx;
+  stp_receiver_init(&rx);
+  stp_rx_packet_t parsed;
+  /* Leading rubbish, including a false start on the first sync byte, must not
+   * stop the following packet from being found. */
+  const uint8_t noise[] = {0x00U, 0x1AU, 0xFFU, 0x1AU, 0xCFU, 0x11U};
+  TEST_ASSERT_FALSE(feed(&rx, noise, sizeof(noise), &parsed));
+  uint8_t packet[STP_COMMAND_SIZE];
+  size_t length = make_request(packet, STP_TYPE_HRT_GO, 3U, 9U, 4U);
+  TEST_ASSERT_TRUE(feed(&rx, packet, length, &parsed));
+  TEST_ASSERT_EQUAL_INT(STP_RX_HRT_GO, parsed.kind);
+  TEST_ASSERT_EQUAL_UINT8(3U, parsed.target_id);
+}
+
+static void test_stp_ignores_unknown_packet_type(void) {
+  stp_receiver_t rx;
+  stp_receiver_init(&rx);
+  uint8_t packet[STP_COMMAND_SIZE];
+  size_t length = make_request(packet, 0x42U, 1U, 0U, 0U);
+  stp_rx_packet_t parsed;
+  TEST_ASSERT_FALSE(feed(&rx, packet, length, &parsed));
+  TEST_ASSERT_EQUAL_UINT32(1U, rx.type_errors);
+}
+
+static void test_stp_builds_transmit_packets(void) {
+  uint8_t out[STP_HRT_DATA_SIZE];
+
+  TEST_ASSERT_EQUAL_UINT32(STP_ACK_SIZE, stp_build_ack(out, sizeof(out), 0x0AU));
+  TEST_ASSERT_EQUAL_UINT32(STP_SYNC_WORD, stp_get_u32(&out[0]));
+  TEST_ASSERT_EQUAL_UINT8(STP_TYPE_COMMAND, out[4]);
+  TEST_ASSERT_EQUAL_UINT8(0x0AU, out[5]);
+  TEST_ASSERT_EQUAL_UINT16(stp_crc16(&out[4], STP_ACK_SIZE - 6U),
+                           stp_get_u16(&out[STP_ACK_SIZE - 2U]));
+
+  uint8_t payload[8] = {1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U};
+  TEST_ASSERT_EQUAL_UINT32(STP_LRT_DATA_SIZE,
+                           stp_build_lrt_data(out, sizeof(out), 2U, payload, sizeof(payload)));
+  TEST_ASSERT_EQUAL_UINT8(STP_TYPE_LRT_DATA, out[4]);
+  TEST_ASSERT_EQUAL_UINT8(1U, out[6]);
+  /* Short payloads are zero padded to the fixed field. */
+  TEST_ASSERT_EQUAL_UINT8(0U, out[6 + sizeof(payload)]);
+  TEST_ASSERT_EQUAL_UINT16(stp_crc16(&out[4], STP_LRT_DATA_SIZE - 6U),
+                           stp_get_u16(&out[STP_LRT_DATA_SIZE - 2U]));
+
+  TEST_ASSERT_EQUAL_UINT32(STP_HRT_DATA_SIZE,
+                           stp_build_hrt_data(out, sizeof(out), 2U, payload, sizeof(payload)));
+  TEST_ASSERT_EQUAL_UINT8(STP_TYPE_HRT_DATA, out[4]);
+  TEST_ASSERT_EQUAL_UINT16(stp_crc16(&out[4], STP_HRT_DATA_SIZE - 6U),
+                           stp_get_u16(&out[STP_HRT_DATA_SIZE - 2U]));
+}
+
+static void test_stp_rejects_undersized_destination(void) {
+  uint8_t small[4];
+  TEST_ASSERT_EQUAL_UINT32(0U, stp_build_ack(small, sizeof(small), 1U));
+  TEST_ASSERT_EQUAL_UINT32(0U, stp_build_lrt_data(small, sizeof(small), 1U, NULL, 0U));
+  TEST_ASSERT_EQUAL_UINT32(0U, stp_build_hrt_data(small, sizeof(small), 1U, NULL, 0U));
+}
+
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
@@ -156,5 +294,12 @@ int main(int argc, char **argv) {
   RUN_TEST(test_vospi_rejects_bad_crc);
   RUN_TEST(test_vospi_recognizes_discard_before_segment_id);
   RUN_TEST(test_vospi_invalid_segment_resets_sequence);
+  RUN_TEST(test_stp_accepts_each_request_type);
+  RUN_TEST(test_stp_command_exposes_payload);
+  RUN_TEST(test_stp_rejects_corrupted_packet);
+  RUN_TEST(test_stp_resynchronizes_after_noise);
+  RUN_TEST(test_stp_ignores_unknown_packet_type);
+  RUN_TEST(test_stp_builds_transmit_packets);
+  RUN_TEST(test_stp_rejects_undersized_destination);
   return UNITY_END();
 }
