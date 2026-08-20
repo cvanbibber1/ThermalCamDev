@@ -156,6 +156,31 @@ continuity, polarity, the transceiver's receiver-enable pin, or termination.
 Until it is fixed the stop fix cannot be exercised over the wire, though it is
 verified by the SWD test above.
 
+## Discrete commands
+
+The 105-byte command payload is undefined by the specification, so this
+experiment carries a command id in its first byte. The set is deliberately
+discrete so a ground operator asks for exactly one thing:
+
+| Id | Command | Corrects first |
+|---|---|---|
+| `0x01` | RUN_FFC | - |
+| `0x02` | TAKE_IMAGE, one complete frame then stop | yes |
+| `0x03` | START_RECORD, stream until stopped | yes |
+| `0x04` | STOP_RECORD | - |
+| `0x05` | STREAM_ON, no correction | - |
+| `0x06` | STREAM_OFF | - |
+| `0x07` | DOSIMETER_ZERO | - |
+
+TAKE_IMAGE exists because streaming is only about two frames a second; when
+that is too slow, one whole frame on request is more useful than a partial
+stream. Vitals report shutter age, shutter mode and capture state so the ground
+can see a request being taken up.
+
+Parsing and dispatch are verified against the firmware's own receiver, and the
+published packet strings are pinned by tests. **Execution has not been exercised
+over the wire** because the camera cannot receive; see the fault above.
+
 ## Still to do for flight
 
 - Decode the command payload once DICE defines it; commands are currently
