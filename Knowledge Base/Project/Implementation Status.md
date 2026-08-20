@@ -79,9 +79,11 @@ last-reviewed: 2026-08-18
 - USB UVC Y16 video is proven on Windows: 210 seconds of capture delivered 1,827 unique
   frames at 8.71 fps with zero malformed, torn, or dropped frames. `tools/uvc_capture.py`
   captures and validates the stream over DirectShow with colour conversion disabled.
-- Flat-field correction runs automatically from the camera's own auto-shutter policy
-  (180 s / 1.5 C). The firmware verifies the policy every 30 s and forces a RUN FFC only if
-  the camera is in manual mode or a correction is overdue. The shutter-mode object is never
+- Flat-field correction runs every 60 s. The camera's own timer is 180 s and cannot be
+  shortened safely, because writing its shutter-mode object is accepted but only partly
+  applied and silently disables automatic correction, so the firmware issues an explicit
+  RUN FFC once APP_LEPTON_FFC_PERIOD_MS has elapsed. Captures correct first and wait for
+  the shutter, in both the RS-422 commands and the application's save and record buttons. The shutter-mode object is never
   written; block writes to it corrupt it on this module.
 - Flash-backed settings in the last sector (`src/settings.c`) hold the dosimeter zero and
   survive reset and reflashing. Saves are deferred to the end of the task loop because the
