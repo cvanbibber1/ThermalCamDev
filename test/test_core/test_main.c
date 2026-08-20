@@ -298,6 +298,35 @@ static void feed_hex(stp_receiver_t *rx, const char *hex, stp_rx_packet_t *packe
   }
 }
 
+/* The discrete capture commands published in COMMANDS.md, checked down to the
+ * command id so a renumbering cannot slip past. */
+static void test_stp_published_experiment_commands(void) {
+  const struct {
+    const char *hex;
+    uint8_t command;
+  } published[] = {
+      {"1ACFFC1D00000000000010C7010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001292",
+       STP_CMD_RUN_FFC},
+      {"1ACFFC1D00000000000010C702000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000CB3F",
+       STP_CMD_TAKE_IMAGE},
+      {"1ACFFC1D00000000000010C70300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000083A4",
+       STP_CMD_START_RECORD},
+      {"1ACFFC1D00000000000010C7040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006844",
+       STP_CMD_STOP_RECORD},
+  };
+  for (size_t i = 0U; i < (sizeof(published) / sizeof(published[0])); ++i) {
+    stp_receiver_t rx;
+    stp_receiver_init(&rx);
+    stp_rx_packet_t packet;
+    bool accepted = false;
+    feed_hex(&rx, published[i].hex, &packet, &accepted);
+    TEST_ASSERT_TRUE(accepted);
+    TEST_ASSERT_EQUAL_INT(STP_RX_COMMAND, packet.kind);
+    TEST_ASSERT_EQUAL_UINT8(0xC7U, packet.target_id);
+    TEST_ASSERT_EQUAL_UINT8(published[i].command, packet.payload[0]);
+  }
+}
+
 static void test_stp_published_command_strings(void) {
   const struct {
     const char *hex;
@@ -340,5 +369,6 @@ int main(int argc, char **argv) {
   RUN_TEST(test_stp_builds_transmit_packets);
   RUN_TEST(test_stp_rejects_undersized_destination);
   RUN_TEST(test_stp_published_command_strings);
+  RUN_TEST(test_stp_published_experiment_commands);
   return UNITY_END();
 }

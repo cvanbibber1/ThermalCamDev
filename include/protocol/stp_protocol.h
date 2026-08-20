@@ -69,6 +69,35 @@
 #define STP_DEFAULT_TARGET_ID 0xC7U
 #endif
 
+/* -------------------------------------------------- experiment commands -- */
+
+/* The specification does not define what goes inside the 105-byte command
+ * payload, so this is our structure and must be agreed with DICE:
+ *
+ *   byte 0      command id, from the list below
+ *   byte 1      flags, currently zero
+ *   bytes 2-3   16-bit parameter, meaning depends on the command
+ *   bytes 4+    reserved, zero
+ *
+ * Commands are deliberately discrete rather than one general "capture", so a
+ * ground operator can ask for exactly one image when the link is too slow to
+ * stream, or start and stop a recording, without ambiguity about what the
+ * camera is currently doing. */
+#define STP_CMD_NONE 0x00U
+/* Correct the image now. Takes about a second, during which video freezes. */
+#define STP_CMD_RUN_FFC 0x01U
+/* Correct, then send exactly one complete frame and stop. For high-latency
+ * links where continuous streaming is not usable. */
+#define STP_CMD_TAKE_IMAGE 0x02U
+/* Correct, then stream continuously until stopped. */
+#define STP_CMD_START_RECORD 0x03U
+#define STP_CMD_STOP_RECORD 0x04U
+/* Stream without correcting first, for when the image is already settled. */
+#define STP_CMD_STREAM_ON 0x05U
+#define STP_CMD_STREAM_OFF 0x06U
+/* Capture and store the dosimeter zero for this unit. */
+#define STP_CMD_DOSIMETER_ZERO 0x07U
+
 /* ------------------------------------------------------------ receiving -- */
 
 typedef enum {

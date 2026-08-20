@@ -39,6 +39,23 @@ ACK_SIZE = 8
 LRT_DATA_SIZE = 1256
 HRT_DATA_SIZE = 1288
 REQUEST_SIZE = 14
+COMMAND_SIZE = 120
+COMMAND_PAYLOAD_OFFSET = 12
+
+# Experiment command ids, carried in the command payload. See
+# include/protocol/stp_protocol.h; the specification does not define this.
+COMMANDS = {
+    "run-ffc": 0x01,
+    "take-image": 0x02,
+    "start-record": 0x03,
+    "stop-record": 0x04,
+    "stream-on": 0x05,
+    "stream-off": 0x06,
+    "dosimeter-zero": 0x07,
+}
+
+CAPTURE_STATES = {0: "idle", 1: "correcting", 2: "single image", 3: "recording"}
+SHUTTER_MODES = {0: "manual", 1: "auto", 2: "external"}
 
 FRAME_BYTES = 160 * 120 * 2
 HRT_HEADER = 16
@@ -99,6 +116,23 @@ def build_request(codec: Codec, packet_type: int, target_id: int) -> bytes:
     return bytes(packet)
 
 
+def build_command(codec: Codec, command_id: int, target_id: int,
+                  parameter: int = 0) -> bytes:
+    """A 120-byte command packet carrying one experiment command."""
+    packet = bytearray(COMMAND_SIZE)
+    packet[0:4] = codec.sync_bytes()
+    struct.pack_into(codec.order + "I", packet, 4, int(time.time()))
+    struct.pack_into(codec.order + "H", packet, 8, 0)
+    packet[10] = TYPE_COMMAND
+    packet[11] = target_id
+    packet[COMMAND_PAYLOAD_OFFSET] = command_id
+    packet[COMMAND_PAYLOAD_OFFSET + 1] = 0
+    struct.pack_into(codec.order + "H", packet, COMMAND_PAYLOAD_OFFSET + 2, parameter)
+    struct.pack_into(codec.order + "H", packet, COMMAND_SIZE - 2,
+                     codec.crc(bytes(packet[4:COMMAND_SIZE - 2])))
+    return bytes(packet)
+
+
 def decode_lrt(codec: Codec, payload: bytes) -> dict:
     """Experiment-defined housekeeping layout; see include/stp_link.h."""
     scene = {}
@@ -120,6 +154,10 @@ def decode_lrt(codec: Codec, payload: bytes) -> dict:
         "dosimeter_zero_uv": codec.i32(payload, 32),
         "dosimeter_flags": codec.u32(payload, 36),
         "vdda_mv": codec.u32(payload, 40),
+        "ffc_elapsed_ms": codec.u32(payload, 56),
+        "shutter_mode": SHUTTER_MODES.get(payload[60], payload[60]),
+        "capture_state": CAPTURE_STATES.get(payload[61], payload[61]),
+        "images_sent": codec.u16(payload, 62),
         **scene,
     }
 
@@ -180,6 +218,8 @@ def main() -> int:
                         help="send a DICE request before listening")
     parser.add_argument("--repeat-request", type=int, default=1,
                         help="send the request this many times, to prove it is honoured")
+    parser.add_argument("--command", choices=sorted(COMMANDS),
+                        help="send an experiment command before listening")
     parser.add_argument("--raw", action="store_true", help="dump every packet header")
     args = parser.parse_args()
 
@@ -201,6 +241,13 @@ def main() -> int:
             time.sleep(0.05)
         print(f"sent {args.request} x{max(1, args.repeat_request)} to target "
               f"0x{args.target:02X}: {request.hex(' ')}")
+
+    if args.command:
+        packet = build_command(codec, COMMANDS[args.command], args.target)
+        port.write(packet)
+        port.flush()
+        print(f"sent command {args.command} (0x{COMMANDS[args.command]:02X}) "
+              f"to target 0x{args.target:02X}")
 
     assembler = FrameAssembler()
     buffer = bytearray()
@@ -252,6 +299,8 @@ def main() -> int:
                         f"LRT  up={fields['uptime_ms'] / 1000:8.1f}s  "
                         f"{fields['lepton_state']:<10} gen={fields['frame_generation']:<7} "
                         f"dose={fields['dose_rad']:+.3f} rad  "
+                        f"ffc {fields['ffc_elapsed_ms'] / 1000:5.1f}s  "
+                        f"{fields['capture_state']:<12} "
                         + (f"scene {fields['scene_min_c']:.1f}..{fields['scene_max_c']:.1f} C"
                            if "scene_min_c" in fields else "no frame")
                     )

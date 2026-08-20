@@ -348,6 +348,37 @@ class Rs422Grabber(QtCore.QThread):
         self._target = target
         self._running = True
         self._stp = _load_sibling("stp_monitor")
+        # The reading thread owns the port, so commands are queued here and
+        # written by that thread rather than opening a second handle.
+        self._outbox: list[bytes] = []
+        self._outbox_lock = QtCore.QMutex()
+
+    def send_command(self, name: str) -> str:
+        """Queue an experiment command for the reader thread to transmit."""
+        stp = self._stp
+        if name not in stp.COMMANDS:
+            return f"unknown command {name}"
+        codec = stp.Codec(True, 0xFFFF)
+        packet = stp.build_command(codec, stp.COMMANDS[name], self._target)
+        self._outbox_lock.lock()
+        try:
+            self._outbox.append(packet)
+        finally:
+            self._outbox_lock.unlock()
+        return f"sent {name} over RS-422"
+
+    def _drain_outbox(self, link) -> None:
+        self._outbox_lock.lock()
+        try:
+            queued, self._outbox = self._outbox, []
+        finally:
+            self._outbox_lock.unlock()
+        for packet in queued:
+            try:
+                link.write(packet)
+                link.flush()
+            except Exception:  # noqa: BLE001 - reported by the read loop
+                pass
 
     def _wait(self, seconds: float) -> None:
         deadline = time.time() + seconds
@@ -375,6 +406,7 @@ class Rs422Grabber(QtCore.QThread):
             buffer = bytearray()
             try:
                 while self._running:
+                    self._drain_outbox(link)
                     chunk = link.read(4096)
                     if chunk:
                         buffer.extend(chunk)
@@ -879,8 +911,28 @@ class MainWindow(QtWidgets.QMainWindow):
         self.low_spin.setValue(float(ti.counts_to_celsius(self.frame.min())))
         self.high_spin.setValue(float(ti.counts_to_celsius(self.frame.max())))
 
+    #: The shutter takes about a second and the frames just after it are not
+    #: settled, so a capture that corrects first has to wait this long.
+    FFC_SETTLE_MS = 1800
+
+    def request_ffc(self) -> str:
+        """Correct the image, over whichever link this window is using."""
+        if self._source == "rs422" and not self.control.connected:
+            return self.grabber.send_command("run-ffc")
+        return self.control.run_ffc()
+
+    def _correct_then(self, action, label: str) -> None:
+        """Correct the image, then capture once the shutter has settled.
+
+        Captures are worth correcting first: the reason to take an image is
+        usually that something has changed, and an uncorrected frame carries
+        whatever drift has built up since the last shutter.
+        """
+        self.statusBar().showMessage(f"{self.request_ffc()}, then {label}", 3000)
+        QtCore.QTimer.singleShot(self.FFC_SETTLE_MS, action)
+
     def on_ffc(self) -> None:
-        self.statusBar().showMessage(self.control.run_ffc(), 4000)
+        self.statusBar().showMessage(self.request_ffc(), 4000)
 
     def on_open_folder(self) -> None:
         QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(self.output_dir)))
@@ -913,6 +965,12 @@ class MainWindow(QtWidgets.QMainWindow):
         return meta
 
     def on_snapshot(self) -> None:
+        """Correct the image first, then save it."""
+        if self.frame is None or self.display is None:
+            return
+        self._correct_then(self._save_snapshot, "saving")
+
+    def _save_snapshot(self) -> None:
         if self.frame is None or self.display is None:
             return
         base = self.output_dir / f"thermal-{time.strftime('%Y%m%d-%H%M%S')}"
@@ -949,48 +1007,58 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.display is None:
                 self.record_button.setChecked(False)
                 return
-            self._recording_path = self.output_dir / f"thermal-{time.strftime('%Y%m%d-%H%M%S')}.mp4"
-            # The camera produces roughly nine unique frames a second.
-            self._writer = cv2.VideoWriter(
-                str(self._recording_path),
-                cv2.VideoWriter_fourcc(*"mp4v"),
-                9.0,
-                (ti.WIDTH, ti.HEIGHT),
-            )
-            if not self._writer.isOpened():
-                self._writer = None
-                self.record_button.setChecked(False)
-                self.statusBar().showMessage("could not open the video writer", 5000)
-                return
-            if self.raw_check.isChecked():
-                self._raw_log = open(self._recording_path.with_suffix(".y16"), "wb")
-            self._recorded = 0
-            self._dose_log = []
-            self._recording_started = time.strftime("%Y-%m-%dT%H:%M:%S")
-            self.record_button.setText("Stop recording")
+            self.record_button.setText("Correcting...")
+            self._correct_then(self._begin_recording, "recording")
         else:
-            if self._writer is not None:
-                self._writer.release()
-                self._writer = None
-            if self._raw_log is not None:
-                self._raw_log.close()
-                self._raw_log = None
-            if self._recording_path is not None:
-                # Video containers cannot carry a dose trace, so it goes beside
-                # the file with the frame count needed to line it up.
-                meta = self._metadata()
-                meta["started"] = getattr(self, "_recording_started", meta["captured"])
-                meta["frames"] = self._recorded
-                meta["nominal_fps"] = 9.0
-                meta["dose_samples"] = self._dose_log
-                self._recording_path.with_suffix(".json").write_text(
-                    json.dumps(meta, indent=2), encoding="utf-8"
-                )
-                self.statusBar().showMessage(
-                    f"saved {self._recording_path.name}, {self._recorded} frames "
-                    f"and {len(self._dose_log)} dose samples", 6000
-                )
-            self.record_button.setText("Start recording")
+            self._end_recording()
+
+    def _begin_recording(self) -> None:
+        """Start writing, once the correction requested by on_record is done."""
+        if not self.record_button.isChecked():
+            return
+        self._recording_path = self.output_dir / f"thermal-{time.strftime('%Y%m%d-%H%M%S')}.mp4"
+        # The camera produces roughly nine unique frames a second.
+        self._writer = cv2.VideoWriter(
+            str(self._recording_path),
+            cv2.VideoWriter_fourcc(*"mp4v"),
+            9.0,
+            (ti.WIDTH, ti.HEIGHT),
+        )
+        if not self._writer.isOpened():
+            self._writer = None
+            self.record_button.setChecked(False)
+            self.statusBar().showMessage("could not open the video writer", 5000)
+            return
+        if self.raw_check.isChecked():
+            self._raw_log = open(self._recording_path.with_suffix(".y16"), "wb")
+        self._recorded = 0
+        self._dose_log = []
+        self._recording_started = time.strftime("%Y-%m-%dT%H:%M:%S")
+        self.record_button.setText("Stop recording")
+
+    def _end_recording(self) -> None:
+        if self._writer is not None:
+            self._writer.release()
+            self._writer = None
+        if self._raw_log is not None:
+            self._raw_log.close()
+            self._raw_log = None
+        if self._recording_path is not None:
+            # Video containers cannot carry a dose trace, so it goes beside the
+            # file with the frame count needed to line it up.
+            meta = self._metadata()
+            meta["started"] = getattr(self, "_recording_started", meta["captured"])
+            meta["frames"] = self._recorded
+            meta["nominal_fps"] = 9.0
+            meta["dose_samples"] = self._dose_log
+            self._recording_path.with_suffix(".json").write_text(
+                json.dumps(meta, indent=2), encoding="utf-8"
+            )
+            self.statusBar().showMessage(
+                f"saved {self._recording_path.name}, {self._recorded} frames "
+                f"and {len(self._dose_log)} dose samples", 6000
+            )
+        self.record_button.setText("Start recording")
 
     def _update_readout(self) -> None:
         if self.frame is None:
@@ -1033,9 +1101,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def refresh_status(self) -> None:
         if self._source == "rs422" and not self.control.connected:
-            # on_vitals owns the label in this mode.
-            self.ffc_button.setEnabled(False)
-            self.zero_button.setEnabled(False)
+            # on_vitals owns the label in this mode. Commands travel over the
+            # RS-422 link itself, so the shutter and the dosimeter zero are
+            # both available without a USB serial connection.
+            self.ffc_button.setEnabled(True)
+            self.zero_button.setEnabled(True)
             return
         if not self.control.connected:
             self.link_label.setText(f"control link: {self.control.error or 'offline'}")
@@ -1059,7 +1129,11 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     def on_zero_dosimeter(self) -> None:
-        self.statusBar().showMessage(self.control.zero_dosimeter(), 5000)
+        if self._source == "rs422" and not self.control.connected:
+            message = self.grabber.send_command("dosimeter-zero")
+        else:
+            message = self.control.zero_dosimeter()
+        self.statusBar().showMessage(message, 5000)
 
     def on_vitals(self, vitals: dict) -> None:
         """Dosimeter figures arriving over RS-422 rather than USB serial."""
@@ -1091,7 +1165,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def refresh_dose(self) -> None:
         if self._source == "rs422":
             # Vitals arrive with the stream; there is nothing to poll for.
-            self.zero_button.setEnabled(self.control.connected)
             return
         sample = self.control.dosimeter()
         if sample is None:

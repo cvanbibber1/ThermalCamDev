@@ -17,13 +17,15 @@
  * mode is configured, whichever of these two thresholds is reached first.
  * These are the module defaults, set explicitly so behaviour does not depend
  * on how a particular camera was left configured. */
-#define APP_LEPTON_FFC_PERIOD_MS 180000U
+#define APP_LEPTON_FFC_PERIOD_MS 60000U
 #define APP_LEPTON_FFC_TEMP_DELTA_C100 150U
-/* How often the firmware checks that the camera is still correcting itself.
- * Each check is a blocking 100 kHz CCI read, so keep it well apart. */
-#define APP_LEPTON_FFC_CHECK_MS 30000U
-/* Slack past the desired period before the firmware forces a correction. */
-#define APP_LEPTON_FFC_OVERDUE_MS 60000U
+/* How often the firmware checks whether a correction is due. Each check is a
+ * blocking 100 kHz CCI read, so it is kept well apart, but it must be short
+ * against the period above or corrections drift late. */
+#define APP_LEPTON_FFC_CHECK_MS 10000U
+/* The shutter takes about a second, and the first frames after it are not
+ * settled. Captures that ask for a correction first wait this long. */
+#define APP_LEPTON_FFC_SETTLE_MS 1500U
 #define APP_LEPTON_RESYNC_MS 200U
 /* Longest a ready chunk may wait for HAL/DMA to release before resyncing. */
 #define APP_LEPTON_CHUNK_STALL_MS 5U

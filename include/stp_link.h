@@ -21,6 +21,15 @@
 #define STP_HRT_HEADER_SIZE 16U
 #define STP_HRT_CHUNK_BYTES (1280U - STP_HRT_HEADER_SIZE)
 
+/* What the image stream is currently doing, reported in vitals so a ground
+ * operator can see whether a request was taken up. */
+typedef enum {
+  STP_CAPTURE_IDLE = 0,
+  STP_CAPTURE_CORRECTING,  /* waiting for the shutter before capturing */
+  STP_CAPTURE_SINGLE,      /* sending exactly one frame */
+  STP_CAPTURE_RECORDING,   /* streaming until stopped */
+} stp_capture_state_t;
+
 typedef struct {
   uint8_t target_id;
   bool hrt_enabled;
@@ -36,6 +45,9 @@ typedef struct {
    * can be correlated with DICE's clock. */
   uint32_t coarse_time;
   uint16_t fine_time;
+  uint8_t capture_state;
+  uint32_t commands_executed;
+  uint32_t images_sent;
 } stp_link_status_t;
 
 bool stp_link_init(void);

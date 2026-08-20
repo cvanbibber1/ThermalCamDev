@@ -58,6 +58,11 @@ static uint32_t last_hrt_ms;
  * would simply be dropped and the request would look ignored. */
 static bool pending_ack;
 static bool pending_lrt;
+/* Capture sequencing. A capture always corrects the image first, so the frame
+ * that goes down is not the drifted one that prompted the request. */
+static uint32_t correcting_until_ms;
+static bool burst_active;
+static uint8_t pending_capture_target;
 
 static uint16_t chunks_per_frame(void) {
   return (uint16_t)((APP_FRAME_BYTES + STP_HRT_CHUNK_BYTES - 1U) /
@@ -92,8 +97,12 @@ bool stp_link_init(void) {
   /* Bench builds start streaming; flight waits to be told. Either way the
    * flag is what the task loop obeys, so stop always works. */
   current.hrt_enabled = (STP_BENCH_FREERUN != 0);
+  current.capture_state = (uint8_t)(STP_BENCH_FREERUN ? STP_CAPTURE_RECORDING
+                                                      : STP_CAPTURE_IDLE);
   pending_ack = false;
   pending_lrt = false;
+  burst_active = false;
+  correcting_until_ms = 0U;
   stp_receiver_init(&receiver);
   board_rs485_de(false);
   return HAL_UART_Receive_DMA(&huart2, rx_dma, sizeof(rx_dma)) == HAL_OK;
@@ -126,6 +135,10 @@ static size_t build_lrt_payload(uint8_t *out, size_t capacity) {
   put_u32(&out[16], camera.frame_generation);
   put_u16(&out[20], (uint16_t)camera.last_cci_result);
   put_u16(&out[22], (uint16_t)camera.last_ffc_result);
+  put_u32(&out[56], camera.ffc_elapsed_ms);
+  out[60] = camera.ffc_shutter_mode;
+  out[61] = current.capture_state;
+  put_u16(&out[62], (uint16_t)current.images_sent);
 
   put_u32(&out[24], (uint32_t)dose.dose_microrad);
   put_u32(&out[28], dose.filtered_voltage_uv);
@@ -236,7 +249,71 @@ static bool send_hrt(void) {
     return false;
   }
   ++current.hrt_sent;
+  /* build_hrt_payload wraps the chunk index back to zero after the last slice,
+   * so this is where a whole frame has just gone out. */
+  if ((hrt_chunk == 0U) && burst_active) {
+    burst_active = false;
+    current.hrt_enabled = false;
+    current.capture_state = (uint8_t)STP_CAPTURE_IDLE;
+    ++current.images_sent;
+  }
   return true;
+}
+
+/* ------------------------------------------------------------- commands -- */
+
+/* Begin a capture by correcting the image first. The stream stays off until
+ * the shutter has finished and the first frames after it have settled. */
+static void begin_corrected_capture(stp_capture_state_t target) {
+  (void)lepton_capture_run_ffc();
+  correcting_until_ms = HAL_GetTick() + APP_LEPTON_FFC_SETTLE_MS;
+  current.capture_state = (uint8_t)STP_CAPTURE_CORRECTING;
+  current.hrt_enabled = false;
+  burst_active = (target == STP_CAPTURE_SINGLE);
+  hrt_chunk = 0U;
+  /* Remembered so the settle timer knows what to start. */
+  pending_capture_target = (uint8_t)target;
+}
+
+static void stop_capture(void) {
+  current.hrt_enabled = false;
+  burst_active = false;
+  correcting_until_ms = 0U;
+  current.capture_state = (uint8_t)STP_CAPTURE_IDLE;
+  hrt_chunk = 0U;
+}
+
+static void execute_command(uint8_t command) {
+  switch (command) {
+    case STP_CMD_RUN_FFC:
+      (void)lepton_capture_run_ffc();
+      break;
+    case STP_CMD_TAKE_IMAGE:
+      begin_corrected_capture(STP_CAPTURE_SINGLE);
+      break;
+    case STP_CMD_START_RECORD:
+      begin_corrected_capture(STP_CAPTURE_RECORDING);
+      break;
+    case STP_CMD_STOP_RECORD:
+    case STP_CMD_STREAM_OFF:
+      stop_capture();
+      break;
+    case STP_CMD_STREAM_ON:
+      /* Deliberately no correction: the caller is asking for the image as it
+       * stands, which is what you want when it is already settled. */
+      burst_active = false;
+      correcting_until_ms = 0U;
+      current.hrt_enabled = true;
+      current.capture_state = (uint8_t)STP_CAPTURE_RECORDING;
+      break;
+    case STP_CMD_DOSIMETER_ZERO:
+      (void)dosimeter_begin_zero();
+      break;
+    default:
+      /* Unknown command: still acknowledged, but nothing is done. */
+      return;
+  }
+  ++current.commands_executed;
 }
 
 /* ------------------------------------------------------------ receiving -- */
@@ -256,9 +333,9 @@ static void handle_packet(const stp_rx_packet_t *packet) {
   switch (packet->kind) {
     case STP_RX_COMMAND:
       ++current.commands_received;
-      /* The command payload structure is not defined by the specification, so
-       * nothing is decoded from it yet; the packet is acknowledged as
-       * received. */
+      if (packet->payload != NULL) {
+        execute_command(packet->payload[0]);
+      }
       pending_ack = true;
       break;
     case STP_RX_LRT_REQUEST:
@@ -267,13 +344,13 @@ static void handle_packet(const stp_rx_packet_t *packet) {
       break;
     case STP_RX_HRT_GO:
       current.hrt_enabled = true;
+      current.capture_state = (uint8_t)STP_CAPTURE_RECORDING;
       break;
     case STP_RX_HRT_STOP:
     case STP_RX_HRT_STOP_WITH_LOSS:
-      current.hrt_enabled = false;
       /* Restart at a frame boundary when it resumes. Stop with loss differs
        * only in that DICE expects the gap, so both are handled alike here. */
-      hrt_chunk = 0U;
+      stop_capture();
       break;
     default:
       break;
@@ -300,6 +377,15 @@ void stp_link_task(void) {
     return;
   }
   uint32_t now = HAL_GetTick();
+
+  /* A capture waiting on the shutter starts once it has settled. */
+  if ((correcting_until_ms != 0U) &&
+      ((int32_t)(now - correcting_until_ms) >= 0)) {
+    correcting_until_ms = 0U;
+    hrt_chunk = 0U;
+    current.hrt_enabled = true;
+    current.capture_state = pending_capture_target;
+  }
 
   /* Owed replies go first: DICE asked for these and is waiting. */
   if (pending_ack) {
