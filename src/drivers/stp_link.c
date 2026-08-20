@@ -20,10 +20,20 @@
 #define STP_BENCH_FREERUN 1
 #endif
 
+/* Vitals cadence. LRT carries telemetry only, so it is small and infrequent
+ * and is always given the transmitter first; at one packet a second it costs
+ * about 1.4% of the link. */
 #define STP_FREERUN_LRT_PERIOD_MS 1000U
-/* One HRT packet is 1288 bytes, about 14 ms at 921600 baud. Pacing them apart
- * keeps the link from being saturated by image data on the bench. */
-#define STP_FREERUN_HRT_PERIOD_MS 40U
+
+/* HRT carries the image and is sent back to back whenever the transmitter is
+ * idle, because the image rate is what the link limits.
+ *
+ * One HRT packet is 1288 bytes, about 14.0 ms at 921600 baud 8N1, so the link
+ * carries at most about 71 packets a second. A frame is 38400 bytes, which is
+ * 31 packets, so the ceiling is roughly 2.3 frames a second against the 8.8
+ * the camera produces. Sending 16-bit radiometric pixels is what costs this;
+ * an 8-bit image would roughly double the rate. */
+#define STP_HRT_MIN_GAP_MS 0U
 
 #define STP_RX_DMA_SIZE 512U
 
@@ -271,25 +281,30 @@ void stp_link_task(void) {
   current.crc_errors = receiver.crc_errors;
   current.type_errors = receiver.type_errors;
 
-#if STP_BENCH_FREERUN
+  if (current.transmitting) {
+    return;
+  }
   uint32_t now = HAL_GetTick();
-  if (!current.transmitting && ((now - last_lrt_ms) >= STP_FREERUN_LRT_PERIOD_MS)) {
+
+  /* Vitals take the transmitter first so image traffic cannot starve them. */
+#if STP_BENCH_FREERUN
+  if ((now - last_lrt_ms) >= STP_FREERUN_LRT_PERIOD_MS) {
     last_lrt_ms = now;
     (void)send_lrt();
-  } else if (!current.transmitting &&
-             ((now - last_hrt_ms) >= STP_FREERUN_HRT_PERIOD_MS)) {
+    return;
+  }
+#endif
+
+  /* Then fill the remaining link with image packets. */
+#if STP_BENCH_FREERUN
+  const bool stream = true;
+#else
+  const bool stream = current.hrt_enabled;
+#endif
+  if (stream && ((now - last_hrt_ms) >= STP_HRT_MIN_GAP_MS)) {
     last_hrt_ms = now;
     (void)send_hrt();
   }
-#else
-  if (current.hrt_enabled && !current.transmitting) {
-    uint32_t now = HAL_GetTick();
-    if ((now - last_hrt_ms) >= STP_FREERUN_HRT_PERIOD_MS) {
-      last_hrt_ms = now;
-      (void)send_hrt();
-    }
-  }
-#endif
 }
 
 bool stp_link_set_target_id(uint8_t target_id) {

@@ -7,13 +7,13 @@
 /* DICE <-> Experiment RS-422 packet format for the STP flight.
  *
  * Framing, sizes, type codes and CRC coverage come from
- * dice_experiment_rs422_protocol.md and rs422_command_packet_format.md and are
- * authoritative. Four things are NOT defined by those documents and are
- * gathered in the "unconfirmed" block below so they can be corrected in one
- * place once the interface control document is available: wire byte order,
- * CRC-16 parameters, the coarse-time epoch, and our Target ID. The payload
- * contents of LRT and HRT are also undefined by the specification, so the
- * layouts here are this experiment's own and must be agreed with DICE.
+ * dice_experiment_rs422_protocol.md and rs422_command_packet_format.md.
+ *
+ * Byte order, CRC parameters, CRC placement and our Target ID were confirmed
+ * by the project on 2026-08-19 and are no longer assumptions. What remains
+ * open is the coarse-time epoch, the internal structure of the 105-byte
+ * command payload, and whether DICE expects a particular layout inside the
+ * LRT and HRT payloads; the layouts here are this experiment's own.
  */
 
 /* ---------------------------------------------------------------- sizes -- */
@@ -42,28 +42,31 @@
 
 /* Experiment -> DICE */
 #define STP_ACK_SIZE 8U
+/* 1256 total: 6 header, 1248 payload, 2 CRC. The source table listed only
+ * 1254 bytes; the missing two are the CRC, confirmed 2026-08-19. */
 #define STP_LRT_DATA_SIZE 1256U
 #define STP_LRT_PAYLOAD_SIZE 1248U
 #define STP_HRT_DATA_SIZE 1288U
 #define STP_HRT_PAYLOAD_SIZE 1280U
 
-/* ---------------------------------------------------------- unconfirmed -- */
+/* ------------------------------------------------------------ confirmed -- */
 
-/* The tables show the sync as the value 0x1ACF_FC1D without stating how it is
- * placed on the wire. Most significant byte first gives 1A CF FC 1D. */
+/* Big endian: the sync value 0x1ACF_FC1D goes on the wire as 1A CF FC 1D, and
+ * every multi-byte field follows. */
 #ifndef STP_BIG_ENDIAN
 #define STP_BIG_ENDIAN 1
 #endif
 
-/* The tables state a 16-bit CRC without parameters. CRC-16/CCITT-FALSE with a
- * 0xFFFF seed is the usual choice in this class of avionics link. */
+/* CRC-16/CCITT-FALSE: polynomial 0x1021, seed 0xFFFF, no reflection, no final
+ * xor. It occupies the last two bytes of every packet in both directions,
+ * which is what resolves the two bytes the LRT table did not account for. */
 #ifndef STP_CRC16_SEED
 #define STP_CRC16_SEED 0xFFFFU
 #endif
 
-/* Assigned by the flight computer; the specification does not allocate it. */
+/* This experiment's assigned Target ID. */
 #ifndef STP_DEFAULT_TARGET_ID
-#define STP_DEFAULT_TARGET_ID 0x01U
+#define STP_DEFAULT_TARGET_ID 0xC7U
 #endif
 
 /* ------------------------------------------------------------ receiving -- */

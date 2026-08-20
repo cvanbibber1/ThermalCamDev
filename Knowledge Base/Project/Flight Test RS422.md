@@ -10,29 +10,35 @@ last-reviewed: 2026-08-19
 USB video, USB CDC and the desktop application, so the same data can be watched
 on both transports during bring-up.
 
-## What is authoritative and what is not
+## Confirmed link settings
 
 Packet sizes, type codes, field offsets and CRC coverage come from
 `dice_experiment_rs422_protocol.md` and `rs422_command_packet_format.md`.
 
-Four things are **not** defined by those documents and are assumptions gathered
-at the top of `include/protocol/stp_protocol.h` so they can be corrected in one
-place:
+The project confirmed the following on 2026-08-19. They were previously
+assumptions and are now settled, held in `include/protocol/stp_protocol.h`:
 
-| Assumption | Current value | Where |
+| Setting | Value | Where |
 |---|---|---|
-| Wire byte order | most significant byte first | `STP_BIG_ENDIAN` |
-| CRC-16 parameters | CCITT poly 0x1021, seed 0xFFFF | `STP_CRC16_SEED` |
-| Target ID | 1, stored in flash settings | `STP_DEFAULT_TARGET_ID` |
-| Coarse time epoch | not interpreted, echoed back only | - |
+| Wire byte order | Big endian, sync goes out `1A CF FC 1D` | `STP_BIG_ENDIAN` |
+| CRC-16 | CCITT-FALSE, poly 0x1021, seed 0xFFFF | `STP_CRC16_SEED` |
+| CRC position | Last two bytes of every packet, both directions | - |
+| Target ID | `0xC7`, also stored in flash settings | `STP_DEFAULT_TARGET_ID` |
 
-The LRT and HRT payload contents are also undefined by the specification. The
-layouts used here are this experiment's own and **must be agreed with DICE**;
-they are documented in `include/stp_link.h` and decoded by
-`tools/stp_monitor.py`.
+The CRC confirmation also resolves the two bytes the LRT table did not account
+for: 1256 total is 6 header, 1248 payload and 2 CRC.
 
-`tools/stp_monitor.py` exposes byte order, CRC seed and Target ID as options,
-so a mismatch can be identified from the ground side without rebuilding.
+### Still open
+
+- **Coarse time epoch.** Received timestamps are echoed back in vitals but not
+  interpreted, so telemetry cannot yet be placed on DICE's clock.
+- **Command payload structure.** The 105 bytes are undefined, so commands are
+  acknowledged but nothing is decoded from them.
+- **LRT and HRT payload layouts.** Ours, documented in `include/stp_link.h` and
+  decoded by `tools/stp_monitor.py`. They must be agreed with DICE.
+
+`tools/stp_monitor.py` still exposes byte order and CRC seed as options so a
+mismatch can be proved from the ground without rebuilding.
 
 ## Layout of our payloads
 
@@ -46,10 +52,14 @@ and length. That is 1264 image bytes per packet and 31 packets per frame.
 
 ## Measured
 
-Bench measurement 2026-08-19 with the free-run bench mode enabled:
+Bench measurement 2026-08-19 with the free-run bench mode enabled, after the
+image stream was allowed to run back to back:
 
-- LRT 1 packet/s, HRT 24 packets/s, so about 0.78 frames/s over RS-422 and
-  roughly a third of the 921600 baud link.
+- LRT 1 packet/s carrying vitals only, HRT 61 packets/s carrying the image, so
+  1.98 frames/s over RS-422 at 87% of the 921600 baud link. The ceiling is
+  2.3 frames/s: a 1288-byte packet takes 14.0 ms and a frame is 31 packets.
+  Halving the pixel depth would roughly double the rate at the cost of the
+  radiometry.
 - USB video continued at 8.93 unique frames/s at the same time, unaffected.
 - The host decoder and the firmware encoder were cross-checked packet by
   packet: sizes, CRCs and every decoded field match.

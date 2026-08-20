@@ -30,7 +30,8 @@
 /* A chunk clocks out in about 13 ms; past this the transport is dead. */
 #define APP_LEPTON_CHUNK_TIMEOUT_MS 50U
 #define APP_RS485_BAUD 921600U
-#define APP_NODE_ADDRESS_DEFAULT 1U
+/* Doubles as the STP Target ID on this branch; see STP_DEFAULT_TARGET_ID. */
+#define APP_NODE_ADDRESS_DEFAULT 0xC7U
 /* Dosimeter transfer function, in volts at PA4 after the external gain stage:
  *
  *     DOSI = 0.1575 + 0.0025 * D_rad

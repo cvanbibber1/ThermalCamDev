@@ -164,11 +164,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", required=True, help="RS-422 converter serial port")
     parser.add_argument("--baud", type=int, default=921600)
-    parser.add_argument("--target", type=lambda v: int(v, 0), default=1)
+    parser.add_argument("--target", type=lambda v: int(v, 0), default=0xC7,
+                        help="Target ID of the camera. Default 0xC7")
     parser.add_argument("--seconds", type=float, default=0.0, help="0 runs until interrupted")
+    # Byte order and CRC parameters are confirmed; these remain so a mismatch
+    # can still be diagnosed from the ground without rebuilding firmware.
     parser.add_argument("--little-endian", action="store_true",
-                        help="try this if nothing syncs")
-    parser.add_argument("--crc-seed", type=lambda v: int(v, 0), default=0xFFFF)
+                        help="diagnostic only; the link is big endian")
+    parser.add_argument("--crc-seed", type=lambda v: int(v, 0), default=0xFFFF,
+                        help="diagnostic only; CRC-16/CCITT-FALSE seeds 0xFFFF")
     parser.add_argument("--save-frames", type=Path, help="write reassembled frames here")
     parser.add_argument("--request", choices=["lrt", "hrt-go", "hrt-stop", "command"],
                         help="send a DICE request before listening")
