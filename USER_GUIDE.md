@@ -26,7 +26,7 @@ pixel**, plus a radiation dosimeter. It presents three interfaces:
 |---|---|---|
 | USB video | Live images, every pixel an absolute temperature | The graphical interface |
 | USB serial | Commands and telemetry | Both interfaces |
-| RS-422 | Commands, telemetry and images for flight | The flight computer, or `stp_monitor.py` |
+| RS-422 | Commands, vitals and images for flight | The flight computer, or `stp_monitor.py` |
 
 Two things are worth knowing before you start.
 
@@ -185,8 +185,7 @@ converter appears as another serial port, separate from the camera's own.
 python .\tools\stp_monitor.py --port COM7
 ```
 
-Use your converter's port, not the camera's. You should see housekeeping about
-once a second:
+Use your converter's port, not the camera's. Vitals arrive once a second:
 
 ```
 LRT  up=  123.4s  streaming  gen=1084    dose=-61.397 rad  scene 18.2..27.6 C
@@ -197,34 +196,63 @@ Useful options:
 | Option | Meaning |
 |---|---|
 | `--save-frames DIR` | Reassemble images from the high-rate stream and write them |
-| `--request lrt` | Ask for housekeeping instead of waiting |
+| `--request lrt` | Ask for vitals instead of waiting |
 | `--request hrt-go` | Start the image stream |
-| `--target N` | Which camera to listen for. Default 1 |
-| `--little-endian`, `--crc-seed` | See below |
+| `--target N` | Which camera to listen for. Default `0xC7` |
 | `--raw` | Show every packet |
+| `--little-endian`, `--crc-seed` | Diagnostics; see below |
 
-### If nothing decodes
+### Link settings
 
-The interface control document does not define the byte order or the checksum
-parameters, so the firmware and this tool use a documented assumption. If you
-see no output, that assumption is the first thing to question, before the
-wiring:
+These are fixed and both ends already agree. They are listed so you can set up
+a third-party analyser, or check one if something looks wrong.
 
-```powershell
-python .\tools\stp_monitor.py --port COM7 --little-endian
-python .\tools\stp_monitor.py --port COM7 --crc-seed 0x0000
+| Setting | Value |
+|---|---|
+| Baud | 921600, 8 data bits, no parity, 1 stop bit |
+| Byte order | Big endian. The sync word `0x1ACFFC1D` goes out as `1A CF FC 1D` |
+| Checksum | CRC-16/CCITT-FALSE: polynomial `0x1021`, seed `0xFFFF`, no reflection, no final xor |
+| Checksum position | The **last two bytes of every packet**, in both directions |
+| Checksum coverage | Everything after the four sync bytes, up to but not including the checksum |
+| This camera's Target ID | `0xC7`, 199 decimal |
+
+If nothing decodes, check the wiring and the baud rate first. The
+`--little-endian` and `--crc-seed` options exist only so a mismatch can be
+proved from the ground without rebuilding firmware; they should not be needed.
+These settings live in `include/protocol/stp_protocol.h` if they ever change.
+
+### The two streams
+
+The link carries two separate things, and they do not overlap.
+
+| Name | Purpose | Rate |
+|---|---|---|
+| LRT, low rate | **Vitals only.** Uptime, camera state, frame counter, dosimeter reading, scene temperature summary, and every error counter. No image data. | Once a second, or on request |
+| HRT, high rate | **The image, and nothing else.** One frame split across 31 packets, each carrying a header so it can be reassembled. | Continuous while enabled |
+
+Vitals are always given the transmitter first, so image traffic cannot crowd
+them out. They cost about 1.4% of the link.
+
+### Image rate over RS-422
+
+Measured on the bench: **61 image packets a second, which is 1.98 frames a
+second**, using 87% of the link. The camera itself produces 8.8 frames a
+second, so RS-422 carries roughly one frame in four.
+
+This is a limit of the link, not something left untuned:
+
+```
+921600 baud, 8N1     = 92,160 bytes/s
+one image packet     =  1,288 bytes = 14.0 ms
+one frame            =     31 packets = 39,928 bytes
+absolute ceiling     =    2.3 frames/s
 ```
 
-If one of those works, tell the firmware to match by changing `STP_BIG_ENDIAN`
-or `STP_CRC16_SEED` in `include/protocol/stp_protocol.h`, which is where every
-such assumption is collected.
-
-### Two kinds of telemetry
-
-| Name | Rate | Carries |
-|---|---|---|
-| LRT, low rate | On request, or once a second on the bench | Housekeeping: uptime, camera state, dose, scene temperatures, error counters |
-| HRT, high rate | While enabled | The thermal image, split across 31 packets per frame, about 0.8 frames per second |
+The cost is that every pixel is a full 16-bit temperature. If a smoother
+picture matters more than per-pixel temperature, sending an 8-bit image would
+roughly double the rate; that has not been done because it would remove the
+radiometry. For a genuinely live picture use the USB video interface, which
+runs at the camera's full 8.8 frames a second.
 
 ---
 
@@ -319,7 +347,7 @@ about 13 per second, repeating some, which is normal.
 | `camera returned error -4` | The image changed during transfer. Just ask again. |
 | Image drifted or smeared | Run a flat-field correction. |
 | Dose reads about -61 rad | Expected on current hardware; see above. |
-| Nothing decodes on RS-422 | See [if nothing decodes](#if-nothing-decodes). |
+| Nothing decodes on RS-422 | Check the wiring and baud rate, then the [link settings](#link-settings). |
 
 ---
 
@@ -383,7 +411,7 @@ use, and a wrong value can stop the camera imaging until it is restarted.
 | Command | Arguments | What it does |
 |---|---|---|
 | `bus-status` | none | Link speed, this camera's ID, whether the image stream is on, and packet counters. |
-| `assign` | `UID ADDRESS` | Gives a camera a new ID, matched by its unique chip ID from `info`. Stored permanently. Used to give each camera on a chain its own address. |
+| `assign` | `UID ADDRESS` | Gives a camera a new Target ID, matched by its unique chip ID from `info`. Stored permanently and survives power cycles. This camera is assigned `0xC7`; use this to give each camera on a chain its own ID. Example: `assign 22800C000651353532343332 0xC7`. |
 
 ---
 
@@ -477,14 +505,14 @@ All counters since power on. The ones worth watching:
 ### `bus-status`
 
 ```
-baud=921600 target_id=1 hrt=off coarse_time=0
+baud=921600 target_id=0xC7 (199) hrt=off coarse_time=0
 rx: commands=0 lrt_requests=0 other_target=0 crc_errors=0 type_errors=0
 tx: lrt=112 hrt=2422
 ```
 
 | Field | Meaning |
 |---|---|
-| `target_id` | This camera's ID on the bus |
+| `target_id` | This camera's ID on the bus. Assigned as `0xC7`. |
 | `hrt` | Whether the image stream is enabled |
 | `coarse_time` | Timestamp from the last packet received, echoed back in telemetry |
 | `rx: commands`, `lrt_requests` | Requests received and answered |
