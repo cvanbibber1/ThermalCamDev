@@ -17,6 +17,24 @@ last-reviewed: 2026-08-18
   polarity of the camera's receive pair, the transceiver's receiver-enable pin,
   and termination.
 
+  **Most likely cause: the receiver is switched off.** The MCU has no pin
+  assigned to the transceiver's receiver-enable; the pin map allocates only
+  TxD, RxD and DE. `RE` is therefore strapped on the board, and the usual
+  half-duplex strapping ties it to DE, which this board pulls high. That leaves
+  the driver permanently on and the receiver permanently off, which is exactly
+  the observed behaviour: transmission is faultless and not even a corrupt byte
+  is ever received. Measure `RE`; it must be low. Note the pin map records the
+  TxD/RxD/DE assignments as assumptions rather than confirmed from a schematic,
+  so PB7 may not reach DE at all, which would explain why forcing PB7 low over
+  SWD changed nothing.
+
+  Second candidate: the receive pair is not connected, either because only the
+  camera's transmit pair was wired or because the converter is two-wire. Third:
+  the transceiver is isolated, so its bus-side ground must be tied to the
+  converter's ground or the pair floats outside the receiver's common-mode
+  range. `tools/rs422_diagnose.py` provides a steady pattern to probe and a
+  loopback test that proves which end is at fault.
+
 - [ ] **ADM2582E topology is unknown.** Confirm whether A/B and Y/Z are routed as four-
   wire or tied for two-wire, how RE is connected, termination/bias, isolation grounds,
   connector pinout, and whether DE pull-up removal is a PCB change.
