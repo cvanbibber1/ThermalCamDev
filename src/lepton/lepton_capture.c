@@ -292,11 +292,14 @@ static void process_chunk(uint8_t buffer) {
 
 /* Supervise flat-field correction.
  *
- * The camera performs FFC itself on its own schedule, so the firmware only
- * confirms that it is still doing so. A module left in manual shutter mode, or
- * one whose correction is overdue (temperature lockout is the usual reason),
- * gets an explicit RUN FFC instead - the image drifts visibly within a few
- * minutes without one. */
+ * The camera corrects itself every 180 s, which is its own default and cannot
+ * be changed safely: writing the shutter-mode object is accepted but only
+ * partly applied and silently disables automatic correction. This project
+ * wants a correction every APP_LEPTON_FFC_PERIOD_MS, so instead of rewriting
+ * the camera's policy the firmware issues an explicit RUN FFC once that much
+ * time has passed. RUN carries no payload and is reliable.
+ *
+ * A module left in manual shutter mode is corrected the same way. */
 static int check_ffc_policy(uint32_t now, bool force_check) {
   if (!force_check && ((now - last_ffc_check_ms) < APP_LEPTON_FFC_CHECK_MS)) {
     return capture_status.last_ffc_result;
@@ -309,13 +312,15 @@ static int check_ffc_policy(uint32_t now, bool force_check) {
     return result;
   }
 
-  uint32_t deadline = ffc.desired_period_ms + APP_LEPTON_FFC_OVERDUE_MS;
-  bool overdue = (ffc.desired_period_ms != 0U) &&
-                 (ffc.elapsed_since_ffc_ms > deadline);
-  if ((ffc.shutter_mode != LEPTON_FFC_SHUTTER_MODE_AUTO) || overdue) {
+  capture_status.ffc_elapsed_ms = ffc.elapsed_since_ffc_ms;
+  capture_status.ffc_shutter_mode = (uint8_t)ffc.shutter_mode;
+
+  bool due = ffc.elapsed_since_ffc_ms >= APP_LEPTON_FFC_PERIOD_MS;
+  if ((ffc.shutter_mode != LEPTON_FFC_SHUTTER_MODE_AUTO) || due) {
     result = lepton_cci_run(LEPTON_CID_SYS_RUN_FFC);
     if (result == LEPTON_CCI_OK) {
       health_increment(&g_health.ffc_forced_runs);
+      capture_status.ffc_elapsed_ms = 0U;
     }
   }
   return result;

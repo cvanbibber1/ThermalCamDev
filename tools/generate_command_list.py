@@ -60,6 +60,30 @@ DICE_REQUESTS = [
 ]
 
 
+EXPERIMENT_COMMANDS = {
+    "RUN_FFC": "Correct the image now; video freezes for about a second",
+    "TAKE_IMAGE": "Correct, then send exactly one complete frame and stop. Use this when the link is too slow to stream",
+    "START_RECORD": "Correct, then stream continuously until stopped",
+    "STOP_RECORD": "Stop streaming",
+    "STREAM_ON": "Stream without correcting first, when the image is already settled",
+    "STREAM_OFF": "Stop streaming",
+    "DOSIMETER_ZERO": "Measure and store this unit's dosimeter zero",
+}
+
+
+def experiment_command(command_id: int) -> bytes:
+    """A 120-byte command packet carrying one experiment command."""
+    packet = bytearray(120)
+    packet[0:4] = codec.sync_bytes()
+    struct.pack_into(">I", packet, 4, 0)
+    struct.pack_into(">H", packet, 8, 0)
+    packet[10] = stp.TYPE_COMMAND
+    packet[11] = TARGET
+    packet[12] = command_id
+    struct.pack_into(">H", packet, 118, codec.crc(bytes(packet[4:118])))
+    return bytes(packet)
+
+
 def request_packet(packet_type: int) -> bytes:
     """A 14-byte request with zero timestamps, so the bytes never change."""
     packet = bytearray(stp.REQUEST_SIZE)
@@ -120,6 +144,26 @@ def main() -> int:
                "Command packet with an empty payload; the camera acknowledges it |")
     out.append("")
 
+    out.append("## Experiment commands over RS-422")
+    out.append("")
+    out.append("Complete 120-byte command packets. The command id sits in the first")
+    out.append("payload byte, at offset 12. These are the discrete actions: one image,")
+    out.append("start and stop a recording, stream, or correct the image.")
+    out.append("")
+    out.append("```")
+    for name in EXPERIMENT_COMMANDS:
+        key = name.lower().replace("_", "-")
+        out.append(f"CMD_{name},{hexs(experiment_command(stp.COMMANDS[key]))}")
+    out.append("```")
+    out.append("")
+    out.append("| CMD_Name | Id | Corrects first | Meaning |")
+    out.append("|---|---|---|---|")
+    for name, description in EXPERIMENT_COMMANDS.items():
+        key = name.lower().replace("_", "-")
+        corrects = "yes" if name in ("TAKE_IMAGE", "START_RECORD") else "-"
+        out.append(f"| `CMD_{name}` | `{stp.COMMANDS[key]:02X}` | {corrects} | {description} |")
+    out.append("")
+
     out.append("## Camera command opcodes")
     out.append("")
     out.append("Two-byte opcodes for the camera's own command protocol, carried over")
@@ -169,6 +213,11 @@ def main() -> int:
         assert codec.u16(packet, 12) == codec.crc(packet[4:12]), name
     packet = command_packet()
     assert codec.u16(packet, 118) == codec.crc(packet[4:118])
+    for name in EXPERIMENT_COMMANDS:
+        key = name.lower().replace("_", "-")
+        packet = experiment_command(stp.COMMANDS[key])
+        assert codec.u16(packet, 118) == codec.crc(packet[4:118]), name
+        assert packet[12] == stp.COMMANDS[key], name
     print("all generated packets pass their own CRC check")
     return 0
 
