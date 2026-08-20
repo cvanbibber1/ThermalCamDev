@@ -111,6 +111,51 @@ free a device held by a blocked driver call, so the application has to be
 restarted to get video back after a reflash. This affects development only:
 the camera is not reset during normal use.
 
+## Bench results 2026-08-20
+
+### The image path is proven
+
+Captures from the DICE emulator decoded exactly: two vitals packets and 53
+image packets, of which one generation was complete. That frame reassembled
+into a coherent 160 x 120 image spanning 27.8 to 40.1 C with no zero pixels.
+Live over the converter the monitor reassembles about 1.6 to 2.0 frames a
+second with no checksum failures.
+
+`tools/thermalcam_app.py --source rs422 --rs422-port COMn` now runs the whole
+window from the RS-422 stream, with the dosimeter panel fed from vitals.
+
+### HRT stop was ignored, now fixed
+
+The bench build set `stream` unconditionally, so `hrt_enabled` was updated by
+HRT stop and stop-with-loss but never consulted. The stream therefore never
+stopped. Free running now only changes the starting state; flow control is
+always obeyed. Proven by forcing `hrt_enabled` to zero over SWD, which stopped
+the image stream while vitals continued.
+
+A second defect was found alongside it: an acknowledgement or vitals reply was
+dropped if the request arrived while an image packet was going out, because the
+transmitter cannot be interrupted. Replies are now queued and sent ahead of
+image traffic as soon as the transmitter frees.
+
+### The camera cannot receive: hardware
+
+**The computer to camera direction does not work at all.** Read from the
+camera's own memory while running, all receive counters are zero, including
+the corrupt-packet counters, so not even a malformed byte is arriving.
+
+| Test | Result |
+|---|---|
+| 14 bytes at 921600, CPU halted | 1 byte reached the UART |
+| 50 bytes at 460800 or above | none |
+| 50 bytes at 115200 with both ends rebuilt to match | none decoded |
+| Same with DE forced inactive via SWD | none |
+
+The transmit direction is faultless at 921600 in the same session, so the cable
+and the converter's receiver are fine. Suspect the camera's receive pair:
+continuity, polarity, the transceiver's receiver-enable pin, or termination.
+Until it is fixed the stop fix cannot be exercised over the wire, though it is
+verified by the SWD test above.
+
 ## Still to do for flight
 
 - Decode the command payload once DICE defines it; commands are currently

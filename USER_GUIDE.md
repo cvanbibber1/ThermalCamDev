@@ -15,6 +15,9 @@ is assumed.
 - [Command reference](#command-reference)
 - [Response reference](#response-reference)
 
+Machine-readable command and packet hex strings for integrating into other
+software are in [COMMANDS.md](COMMANDS.md).
+
 ---
 
 ## What the camera is
@@ -254,6 +257,58 @@ roughly double the rate; that has not been done because it would remove the
 radiometry. For a genuinely live picture use the USB video interface, which
 runs at the camera's full 8.8 frames a second.
 
+### Watch RS-422 images in the window
+
+The graphical interface can take its pictures from RS-422 instead of USB, which
+is how you see the flight link the way the flight computer does:
+
+```powershell
+python .	ools	hermalcam_app.py --source rs422 --rs422-port COM39
+```
+
+Everything in the window works as usual: palettes, contrast, click-to-measure,
+saving images and recording. Two differences:
+
+- The picture updates at about two frames a second rather than 8.8.
+- The dosimeter panel is fed from the vitals stream rather than polled, and the
+  buttons that send commands are greyed out unless a USB serial link is also
+  connected, because commands travel in the direction RS-422 currently cannot
+  carry. See below.
+
+| Option | Meaning |
+|---|---|
+| `--source rs422` | Take pictures from RS-422 |
+| `--rs422-port` | The converter's port, required with `--source rs422` |
+| `--rs422-baud` | Default 921600 |
+| `--target` | Camera Target ID. Default `0xC7` |
+
+### Known fault: the camera does not receive
+
+Measured 2026-08-20. The camera to computer direction is perfect: thousands of
+packets at 921600 with no checksum failures. **The computer to camera direction
+does not work at all.** Commands sent to the camera never arrive, so requesting
+vitals, starting and stopping the image stream, and sending commands all appear
+to be ignored.
+
+The evidence, taken by reading the camera's own registers while it ran:
+
+| Test | Result |
+|---|---|
+| Camera's received-packet counters after many requests | all zero, including the corrupt-packet counters |
+| 14 bytes sent at 921600 with the camera halted | 1 byte reached the receiver |
+| 50 bytes at 460800 or above | none reached the receiver |
+| 50 bytes at 115200, both ends matched | none decoded |
+| Same again with the transmit-enable line forced inactive | still nothing |
+
+Because not even a corrupt byte is counted, this is a wiring or transceiver
+configuration fault on the camera's receive pair, not a baud rate or firmware
+problem. Worth checking: that the converter's transmit pair reaches the
+camera's receive pair, that the pair is not open or swapped, that the
+transceiver's receiver-enable pin is active, and that the pair is terminated.
+
+Until that is fixed the camera still streams vitals and images continuously, so
+the window and the monitor work; only commands do not.
+
 ---
 
 ## Everyday tasks
@@ -348,6 +403,7 @@ about 13 per second, repeating some, which is normal.
 | Image drifted or smeared | Run a flat-field correction. |
 | Dose reads about -61 rad | Expected on current hardware; see above. |
 | Nothing decodes on RS-422 | Check the wiring and baud rate, then the [link settings](#link-settings). |
+| Camera ignores RS-422 commands | Known fault; see [the camera does not receive](#known-fault-the-camera-does-not-receive). |
 
 ---
 
