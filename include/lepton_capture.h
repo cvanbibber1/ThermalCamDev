@@ -20,6 +20,10 @@ typedef struct {
   int16_t last_ffc_result;
   uint32_t frame_generation;
   uint32_t last_vsync_ms;
+  /* Cached at each supervisor check so telemetry can report the shutter
+   * without every reader paying for a blocking sensor read. */
+  uint32_t ffc_elapsed_ms;
+  uint8_t ffc_shutter_mode;
 } lepton_capture_status_t;
 
 void lepton_capture_init(void);
