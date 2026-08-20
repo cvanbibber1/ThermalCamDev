@@ -10,9 +10,13 @@
 
 #include <string.h>
 
-/* Bench bring-up: emit LRT housekeeping periodically and stream HRT without
+/* Bench bring-up: send vitals periodically and begin the image stream without
  * waiting for DICE, so the link can be proven with nothing but an RS-422 to
  * USB converter on the other end.
+ *
+ * This only changes the starting state and adds the periodic vitals. Flow
+ * control is always obeyed: an HRT stop stops the stream in bench mode exactly
+ * as it does in flight.
  *
  * MUST be 0 for flight. Free running means this node drives the bus without
  * being asked, which would collide with other experiments and with DICE. */
@@ -49,6 +53,11 @@ static uint32_t hrt_generation;
 static uint16_t hrt_chunk;
 static uint32_t last_lrt_ms;
 static uint32_t last_hrt_ms;
+/* Replies owed to DICE. A request can arrive while an image packet is going
+ * out, and the transmitter cannot be interrupted; without these the reply
+ * would simply be dropped and the request would look ignored. */
+static bool pending_ack;
+static bool pending_lrt;
 
 static uint16_t chunks_per_frame(void) {
   return (uint16_t)((APP_FRAME_BYTES + STP_HRT_CHUNK_BYTES - 1U) /
@@ -80,6 +89,11 @@ bool stp_link_init(void) {
    * power cycles; the stored default matches STP_DEFAULT_TARGET_ID. */
   uint8_t stored = settings_get()->node_address;
   current.target_id = (stored == 0U) ? STP_DEFAULT_TARGET_ID : stored;
+  /* Bench builds start streaming; flight waits to be told. Either way the
+   * flag is what the task loop obeys, so stop always works. */
+  current.hrt_enabled = (STP_BENCH_FREERUN != 0);
+  pending_ack = false;
+  pending_lrt = false;
   stp_receiver_init(&receiver);
   board_rs485_de(false);
   return HAL_UART_Receive_DMA(&huart2, rx_dma, sizeof(rx_dma)) == HAL_OK;
@@ -245,11 +259,11 @@ static void handle_packet(const stp_rx_packet_t *packet) {
       /* The command payload structure is not defined by the specification, so
        * nothing is decoded from it yet; the packet is acknowledged as
        * received. */
-      (void)send_ack();
+      pending_ack = true;
       break;
     case STP_RX_LRT_REQUEST:
       ++current.lrt_requests;
-      (void)send_lrt();
+      pending_lrt = true;
       break;
     case STP_RX_HRT_GO:
       current.hrt_enabled = true;
@@ -257,7 +271,8 @@ static void handle_packet(const stp_rx_packet_t *packet) {
     case STP_RX_HRT_STOP:
     case STP_RX_HRT_STOP_WITH_LOSS:
       current.hrt_enabled = false;
-      /* Restart at a frame boundary when it resumes. */
+      /* Restart at a frame boundary when it resumes. Stop with loss differs
+       * only in that DICE expects the gap, so both are handled alike here. */
       hrt_chunk = 0U;
       break;
     default:
@@ -286,7 +301,22 @@ void stp_link_task(void) {
   }
   uint32_t now = HAL_GetTick();
 
-  /* Vitals take the transmitter first so image traffic cannot starve them. */
+  /* Owed replies go first: DICE asked for these and is waiting. */
+  if (pending_ack) {
+    if (send_ack()) {
+      pending_ack = false;
+    }
+    return;
+  }
+  if (pending_lrt) {
+    if (send_lrt()) {
+      pending_lrt = false;
+      last_lrt_ms = now;
+    }
+    return;
+  }
+
+  /* Then unsolicited vitals, so image traffic cannot starve them. */
 #if STP_BENCH_FREERUN
   if ((now - last_lrt_ms) >= STP_FREERUN_LRT_PERIOD_MS) {
     last_lrt_ms = now;
@@ -295,13 +325,8 @@ void stp_link_task(void) {
   }
 #endif
 
-  /* Then fill the remaining link with image packets. */
-#if STP_BENCH_FREERUN
-  const bool stream = true;
-#else
-  const bool stream = current.hrt_enabled;
-#endif
-  if (stream && ((now - last_hrt_ms) >= STP_HRT_MIN_GAP_MS)) {
+  /* Whatever link is left carries the image, while the stream is enabled. */
+  if (current.hrt_enabled && ((now - last_hrt_ms) >= STP_HRT_MIN_GAP_MS)) {
     last_hrt_ms = now;
     (void)send_hrt();
   }

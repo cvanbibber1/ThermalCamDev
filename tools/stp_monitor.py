@@ -118,6 +118,7 @@ def decode_lrt(codec: Codec, payload: bytes) -> dict:
         "dose_rad": codec.i32(payload, 24) / 1e6,
         "dosimeter_uv": codec.u32(payload, 28),
         "dosimeter_zero_uv": codec.i32(payload, 32),
+        "dosimeter_flags": codec.u32(payload, 36),
         "vdda_mv": codec.u32(payload, 40),
         **scene,
     }
@@ -174,8 +175,11 @@ def main() -> int:
     parser.add_argument("--crc-seed", type=lambda v: int(v, 0), default=0xFFFF,
                         help="diagnostic only; CRC-16/CCITT-FALSE seeds 0xFFFF")
     parser.add_argument("--save-frames", type=Path, help="write reassembled frames here")
-    parser.add_argument("--request", choices=["lrt", "hrt-go", "hrt-stop", "command"],
+    parser.add_argument("--request",
+                        choices=["lrt", "hrt-go", "hrt-stop", "hrt-stop-loss", "command"],
                         help="send a DICE request before listening")
+    parser.add_argument("--repeat-request", type=int, default=1,
+                        help="send the request this many times, to prove it is honoured")
     parser.add_argument("--raw", action="store_true", help="dump every packet header")
     args = parser.parse_args()
 
@@ -187,10 +191,16 @@ def main() -> int:
     port = serial.Serial(args.port, args.baud, timeout=0.2)
     if args.request:
         types = {"lrt": TYPE_LRT, "hrt-go": TYPE_HRT_GO,
-                 "hrt-stop": TYPE_HRT_STOP, "command": TYPE_COMMAND}
+                 "hrt-stop": TYPE_HRT_STOP,
+                 "hrt-stop-loss": TYPE_HRT_STOP_WITH_LOSS,
+                 "command": TYPE_COMMAND}
         request = build_request(codec, types[args.request], args.target)
-        port.write(request)
-        print(f"sent {args.request} request to target {args.target}: {request.hex(' ')}")
+        for _ in range(max(1, args.repeat_request)):
+            port.write(request)
+            port.flush()
+            time.sleep(0.05)
+        print(f"sent {args.request} x{max(1, args.repeat_request)} to target "
+              f"0x{args.target:02X}: {request.hex(' ')}")
 
     assembler = FrameAssembler()
     buffer = bytearray()

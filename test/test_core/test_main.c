@@ -282,6 +282,44 @@ static void test_stp_rejects_undersized_destination(void) {
   TEST_ASSERT_EQUAL_UINT32(0U, stp_build_hrt_data(small, sizeof(small), 1U, NULL, 0U));
 }
 
+
+/* The exact bytes published in COMMANDS.md for other software to transmit.
+ * They are pinned here so a change to the framing, the CRC parameters or the
+ * Target ID cannot silently invalidate a list someone has already integrated. */
+static void feed_hex(stp_receiver_t *rx, const char *hex, stp_rx_packet_t *packet,
+                     bool *accepted) {
+  *accepted = false;
+  for (const char *p = hex; p[0] != '\0' && p[1] != '\0'; p += 2) {
+    uint8_t high = (uint8_t)((p[0] <= '9') ? (p[0] - '0') : (p[0] - 'A' + 10));
+    uint8_t low = (uint8_t)((p[1] <= '9') ? (p[1] - '0') : (p[1] - 'A' + 10));
+    if (stp_receiver_push(rx, (uint8_t)((high << 4) | low), packet)) {
+      *accepted = true;
+    }
+  }
+}
+
+static void test_stp_published_command_strings(void) {
+  const struct {
+    const char *hex;
+    stp_rx_kind_t kind;
+  } published[] = {
+      {"1ACFFC1D00000000000081C7B03C", STP_RX_LRT_REQUEST},
+      {"1ACFFC1D00000000000087C71A9A", STP_RX_HRT_GO},
+      {"1ACFFC1D00000000000085C77CF8", STP_RX_HRT_STOP},
+      {"1ACFFC1D00000000000086C729AB", STP_RX_HRT_STOP_WITH_LOSS},
+  };
+  for (size_t i = 0U; i < (sizeof(published) / sizeof(published[0])); ++i) {
+    stp_receiver_t rx;
+    stp_receiver_init(&rx);
+    stp_rx_packet_t packet;
+    bool accepted = false;
+    feed_hex(&rx, published[i].hex, &packet, &accepted);
+    TEST_ASSERT_TRUE(accepted);
+    TEST_ASSERT_EQUAL_INT(published[i].kind, packet.kind);
+    TEST_ASSERT_EQUAL_UINT8(0xC7U, packet.target_id);
+  }
+}
+
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
@@ -301,5 +339,6 @@ int main(int argc, char **argv) {
   RUN_TEST(test_stp_ignores_unknown_packet_type);
   RUN_TEST(test_stp_builds_transmit_packets);
   RUN_TEST(test_stp_rejects_undersized_destination);
+  RUN_TEST(test_stp_published_command_strings);
   return UNITY_END();
 }

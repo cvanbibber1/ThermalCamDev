@@ -37,6 +37,17 @@ except ImportError:  # pragma: no cover - reported at runtime
     sys.exit("PySide6 is required: pip install PySide6-Essentials")
 
 
+def _load_sibling(name: str):
+    """Import another tool from this folder without needing it on the path."""
+    import importlib.util
+
+    location = Path(__file__).resolve().parent / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, str(location))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class CameraControl:
     """Optional CDC control link. Video works whether or not this connects."""
 
@@ -312,6 +323,111 @@ class FrameGrabber(QtCore.QThread):
         self.wait(2000)
 
 
+
+class Rs422Grabber(QtCore.QThread):
+    """Reads frames from the camera over RS-422 instead of USB video.
+
+    The camera sends vitals and image slices continuously; this reassembles the
+    slices into frames and passes the vitals on, so the same window works with
+    nothing plugged in but an RS-422 to USB converter.
+
+    Image rate is far lower than USB video, about two frames a second against
+    8.8, because a 160x120 frame of 16-bit temperatures is 38,400 bytes and the
+    link carries 92,160 bytes a second.
+    """
+
+    frame_ready = QtCore.Signal(object)
+    status = QtCore.Signal(str)
+    reconnected = QtCore.Signal()
+    vitals_ready = QtCore.Signal(object)
+
+    def __init__(self, port: str, baud: int, target: int) -> None:
+        super().__init__()
+        self._port = port
+        self._baud = baud
+        self._target = target
+        self._running = True
+        self._stp = _load_sibling("stp_monitor")
+
+    def _wait(self, seconds: float) -> None:
+        deadline = time.time() + seconds
+        while self._running and time.time() < deadline:
+            self.msleep(100)
+
+    def run(self) -> None:
+        import serial
+
+        stp = self._stp
+        codec = stp.Codec(True, 0xFFFF)
+        sync = codec.sync_bytes()
+
+        while self._running:
+            try:
+                link = serial.Serial(self._port, self._baud, timeout=0.2)
+            except Exception as exc:  # noqa: BLE001 - shown in the status bar
+                self.status.emit(f"cannot open {self._port}: {exc}")
+                self._wait(2.0)
+                continue
+
+            self.status.emit("connected")
+            self.reconnected.emit()
+            assembler = stp.FrameAssembler()
+            buffer = bytearray()
+            try:
+                while self._running:
+                    chunk = link.read(4096)
+                    if chunk:
+                        buffer.extend(chunk)
+                    while True:
+                        start = buffer.find(sync)
+                        if start < 0:
+                            # Keep a partial sync across reads.
+                            del buffer[: max(0, len(buffer) - 3)]
+                            break
+                        if start:
+                            del buffer[:start]
+                        if len(buffer) < 6:
+                            break
+                        size = stp.transmitted_size(buffer[4])
+                        if size is None:
+                            del buffer[:4]
+                            continue
+                        if len(buffer) < size:
+                            break
+                        packet = bytes(buffer[:size])
+                        del buffer[:size]
+                        if codec.u16(packet, size - 2) != codec.crc(packet[4:size - 2]):
+                            continue
+                        if packet[5] != self._target:
+                            continue
+                        if size == stp.LRT_DATA_SIZE:
+                            self.vitals_ready.emit(
+                                stp.decode_lrt(codec, packet[6:6 + 1248])
+                            )
+                        elif size == stp.HRT_DATA_SIZE:
+                            frame = assembler.push(codec, packet[6:6 + 1280])
+                            if frame is not None:
+                                self.frame_ready.emit(
+                                    np.frombuffer(frame, dtype="<u2")
+                                    .reshape(ti.HEIGHT, ti.WIDTH)
+                                    .astype(np.float64)
+                                )
+            except Exception as exc:  # noqa: BLE001
+                self.status.emit(f"link error: {exc}")
+            finally:
+                try:
+                    link.close()
+                except Exception:  # noqa: BLE001
+                    pass
+            if self._running:
+                self.status.emit("reconnecting")
+                self._wait(1.0)
+
+    def stop(self) -> None:
+        self._running = False
+        self.wait(2000)
+
+
 @dataclass
 class Spot:
     x: int
@@ -404,7 +520,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.control = CameraControl()
         self.control.connect(args.port)
 
+        self._source = args.source
         self._grabber_index = args.index
+        self._rs422_port = args.rs422_port
+        self._rs422_baud = args.rs422_baud
+        self._target = args.target
         self._start_grabber()
 
         self._status_timer = QtCore.QTimer(self)
@@ -901,13 +1021,22 @@ class MainWindow(QtWidgets.QMainWindow):
         )
 
     def _start_grabber(self) -> None:
-        self.grabber = FrameGrabber(self._grabber_index)
+        if self._source == "rs422":
+            self.grabber = Rs422Grabber(self._rs422_port, self._rs422_baud, self._target)
+            self.grabber.vitals_ready.connect(self.on_vitals)
+        else:
+            self.grabber = FrameGrabber(self._grabber_index)
         self.grabber.frame_ready.connect(self.on_frame)
         self.grabber.status.connect(self.on_video_status)
         self.grabber.reconnected.connect(self.on_reconnected)
         self.grabber.start()
 
     def refresh_status(self) -> None:
+        if self._source == "rs422" and not self.control.connected:
+            # on_vitals owns the label in this mode.
+            self.ffc_button.setEnabled(False)
+            self.zero_button.setEnabled(False)
+            return
         if not self.control.connected:
             self.link_label.setText(f"control link: {self.control.error or 'offline'}")
             self.ffc_button.setEnabled(False)
@@ -932,7 +1061,38 @@ class MainWindow(QtWidgets.QMainWindow):
     def on_zero_dosimeter(self) -> None:
         self.statusBar().showMessage(self.control.zero_dosimeter(), 5000)
 
+    def on_vitals(self, vitals: dict) -> None:
+        """Dosimeter figures arriving over RS-422 rather than USB serial."""
+        self.dose = {
+            "rad": vitals["dose_rad"],
+            "filtered_voltage_uv": vitals["dosimeter_uv"],
+            "zero_uv": vitals["dosimeter_zero_uv"],
+            "flags": vitals.get("dosimeter_flags", 0),
+        }
+        self._show_dose(self.dose)
+        if self._writer is not None:
+            self._dose_log.append(
+                {"t": vitals["uptime_ms"], "rad": self.dose["rad"],
+                 "uv": self.dose["filtered_voltage_uv"]}
+            )
+        self.link_label.setText(
+            f"RS-422 {self._rs422_port}  target 0x{self._target:02X}  "
+            f"{vitals['lepton_state']}"
+        )
+
+    def _show_dose(self, sample: dict) -> None:
+        self.dose_label.setText(f"{sample['rad']:+.3f} rad")
+        notes = self._cli_flags(sample["flags"])
+        self.dose_detail.setText(
+            f"{sample['filtered_voltage_uv']} uV, zero {sample['zero_uv']} uV"
+            + (f"\n{notes}" if notes else "")
+        )
+
     def refresh_dose(self) -> None:
+        if self._source == "rs422":
+            # Vitals arrive with the stream; there is nothing to poll for.
+            self.zero_button.setEnabled(self.control.connected)
+            return
         sample = self.control.dosimeter()
         if sample is None:
             self.zero_button.setEnabled(False)
@@ -1026,10 +1186,18 @@ class MainWindow(QtWidgets.QMainWindow):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source", choices=["uvc", "rs422"], default="uvc",
+                        help="where frames come from: USB video, or RS-422")
+    parser.add_argument("--rs422-port", help="RS-422 converter port, for example COM39")
+    parser.add_argument("--rs422-baud", type=int, default=921600)
+    parser.add_argument("--target", type=lambda v: int(v, 0), default=0xC7,
+                        help="camera Target ID on the RS-422 link")
     parser.add_argument("--index", type=int, help="video device index (default: probe)")
     parser.add_argument("--port", help="control port, for example COM55 (default: probe)")
     parser.add_argument("--output", default="captures", help="folder for images and video")
     args = parser.parse_args()
+    if args.source == "rs422" and not args.rs422_port:
+        parser.error("--source rs422 needs --rs422-port")
 
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow(args)
