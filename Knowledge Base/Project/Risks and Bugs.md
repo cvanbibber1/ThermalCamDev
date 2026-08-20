@@ -8,36 +8,54 @@ last-reviewed: 2026-08-18
 
 ## P0 - blocks connection of a multidrop bus
 
-- [ ] **The camera receives nothing over RS-422.** Measured 2026-08-20: every
-  receive counter including the corrupt-packet counters stays at zero however
-  many packets are sent, at every baud from 57600 to 921600, and with the
-  transmit-enable line forced inactive. Transmission from the camera is
-  faultless at 921600 in the same session. This blocks every command, so the
-  experiment cannot be controlled by the flight computer. Check continuity and
-  polarity of the camera's receive pair, the transceiver's receiver-enable pin,
-  and termination.
+- [ ] **The camera receives nothing usable over RS-422.** Transmission is
+  faultless: 79,462 bytes/s at 921600 with no checksum failures. Reception
+  never produces a packet, and the corrupt-packet counters stay at zero too,
+  so the four-byte sync never survives intact.
 
-  **Most likely cause: the receiver is switched off.** The MCU has no pin
-  assigned to the transceiver's receiver-enable; the pin map allocates only
-  TxD, RxD and DE. `RE` is therefore strapped on the board, and the usual
-  half-duplex strapping ties it to DE, which this board pulls high. That leaves
-  the driver permanently on and the receiver permanently off, which is exactly
-  the observed behaviour: transmission is faultless and not even a corrupt byte
-  is ever received. Measure `RE`; it must be low. Note the pin map records the
-  TxD/RxD/DE assignments as assumptions rather than confirmed from a schematic,
-  so PB7 may not reach DE at all, which would explain why forcing PB7 low over
-  SWD changed nothing.
+  Measured 2026-08-20 by reading the camera's registers while it ran. These are
+  ruled out:
 
-  Second candidate: the receive pair is not connected, either because only the
-  camera's transmit pair was wired or because the converter is two-wire. Third:
-  the transceiver is isolated, so its bus-side ground must be tied to the
-  converter's ground or the pair floats outside the receiver's common-mode
-  range. `tools/rs422_diagnose.py` provides a steady pattern to probe and a
-  loopback test that proves which end is at fault.
+  | Ruled out | Evidence |
+  |---|---|
+  | Receiver disabled | `RE` confirmed tied to ground by inspection |
+  | Converter driver gated by handshake | RTS and DTR make no difference in any of four combinations |
+  | Baud misconfiguration | `BRR` verified correct at both 921600 and 115200 |
+  | Firmware receive path | UART is TX/RX, DMA runs, the buffer fills when bytes do arrive |
+  | Grounds | connected, confirmed by inspection |
 
-- [ ] **ADM2582E topology is unknown.** Confirm whether A/B and Y/Z are routed as four-
-  wire or tied for two-wire, how RE is connected, termination/bias, isolation grounds,
-  connector pinout, and whether DE pull-up removal is a PCB change.
+  What is left is the physical receive pair. It behaves as a marginal,
+  intermittent, frequency-dependent connection:
+
+  | Host rate | Bytes reaching the camera, of 200 sent |
+  |---:|---|
+  | 921600 | 0 |
+  | 153600 to 250000 | 1 to 4 |
+  | 128000 | 113 |
+  | 115200 | 223 once, then 0 on six consecutive repeats |
+
+  The idle line reads as `FF` with occasional `FC`, `F8`, `F0`, which are noise
+  glitches being taken for start bits rather than data.
+
+  The asymmetry is explained by the 120 ohm terminator fitted across A and B at
+  the camera. Series resistance anywhere in that path, a cold joint or a screw
+  terminal gripping insulation, forms a divider with that 120 ohm load and
+  collapses the signal. The opposite direction drives into the converter's
+  high-impedance receiver, where the same poor joint passes signal happily.
+
+  Next steps, cheapest first:
+
+  1. Lift one leg of the 120 ohm resistor and retest. If reception starts, the
+     path has series resistance. This is the single most informative test.
+  2. With `tools/rs422_diagnose.py --mode pattern` running, measure across A and
+     B at the camera. Expect at least 1.5 V peak to peak differential; a few
+     hundred millivolts means series resistance.
+  3. Measure each leg end to end. Anything above about an ohm is suspect.
+     Reflow the joints and check the terminal block grips copper.
+  4. `--mode loopback` with the camera disconnected proves whether the
+     converter and its wiring are sound, independently of the camera.
+  5. Check whether the converter also terminates its own transmit pair; two
+     terminators halve the drive.
 
 ## P1 - resolve before peripheral bring-up
 
