@@ -8,6 +8,15 @@ last-reviewed: 2026-08-18
 
 ## P0 - blocks connection of a multidrop bus
 
+- [ ] **The camera receives nothing over RS-422.** Measured 2026-08-20: every
+  receive counter including the corrupt-packet counters stays at zero however
+  many packets are sent, at every baud from 57600 to 921600, and with the
+  transmit-enable line forced inactive. Transmission from the camera is
+  faultless at 921600 in the same session. This blocks every command, so the
+  experiment cannot be controlled by the flight computer. Check continuity and
+  polarity of the camera's receive pair, the transceiver's receiver-enable pin,
+  and termination.
+
 - [ ] **ADM2582E topology is unknown.** Confirm whether A/B and Y/Z are routed as four-
   wire or tied for two-wire, how RE is connected, termination/bias, isolation grounds,
   connector pinout, and whether DE pull-up removal is a PCB change.
