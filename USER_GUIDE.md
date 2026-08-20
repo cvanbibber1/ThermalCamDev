@@ -38,9 +38,10 @@ hundredths of a kelvin. Divide by 100 for kelvin, then subtract 273.15 for
 Celsius. The colours you see are a display choice applied on the host; the
 underlying numbers never change.
 
-**The camera pauses about every three minutes.** It closes an internal shutter
-to recalibrate, which takes roughly a second and briefly freezes the image.
-This is normal and required for accuracy. See
+**The camera pauses about once a minute.** It closes an internal shutter to
+recalibrate, which takes roughly a second and briefly freezes the image. This
+is normal and required for accuracy. Saving an image or starting a recording
+deliberately triggers one first, so what you capture is freshly corrected. See
 [flat-field correction](#flat-field-correction).
 
 ---
@@ -282,6 +283,37 @@ saving images and recording. Two differences:
 | `--rs422-baud` | Default 921600 |
 | `--target` | Camera Target ID. Default `0xC7` |
 
+### Asking the camera for images
+
+Streaming runs at about two frames a second, which is fine for watching but
+poor when the link is busy or slow. The commands are therefore discrete, so you
+ask for exactly what you want rather than turning a general stream on and off:
+
+```powershell
+python .	ools\stp_monitor.py --port COM39 --command take-image
+python .	ools\stp_monitor.py --port COM39 --command start-record
+python .	ools\stp_monitor.py --port COM39 --command stop-record
+```
+
+| Command | Corrects first | What it does |
+|---|---|---|
+| `run-ffc` | - | Correct the image now |
+| `take-image` | yes | Send exactly one complete frame, then stop. Use when streaming is too slow to be useful |
+| `start-record` | yes | Stream continuously until stopped |
+| `stop-record` | - | Stop streaming |
+| `stream-on` | - | Stream without correcting, when the image is already settled |
+| `stream-off` | - | Stop streaming |
+| `dosimeter-zero` | - | Measure and store this unit's dosimeter zero |
+
+The ones that capture correct the image first and wait for the shutter, so what
+comes back is not a drifted frame. Vitals report the shutter age and whether
+the camera is `idle`, `correcting`, sending a `single image`, or `recording`,
+so you can see a request being taken up.
+
+The complete packet bytes for each are in [COMMANDS.md](COMMANDS.md).
+
+> These commands cannot reach the camera at present; see the fault below.
+
 ### Known fault: the camera does not receive
 
 Measured 2026-08-20. The camera to computer direction is perfect: thousands of
@@ -325,10 +357,17 @@ python -c "import sys; sys.path.insert(0,'tools'); import thermal_imaging as t; 
 
 ### Flat-field correction
 
-The camera recalibrates itself roughly every three minutes, or sooner if its
-temperature drifts. You do not normally need to do anything.
+The camera recalibrates **once a minute**, and sooner if its temperature
+drifts. You do not normally need to do anything: saving an image and starting a
+recording both trigger a correction first and wait for it to finish, so a
+capture is never of a drifted image.
 
-Force one if the image looks smeared or drifted after a temperature change:
+The camera's own shutter timer runs at three minutes and cannot be shortened
+safely, so the firmware asks for a correction itself once a minute. That is why
+`ffc-status` shows a three-minute period while corrections actually happen
+every minute.
+
+Force one at any other time if the image looks smeared:
 
 ```powershell
 python .\tools\thermalcam_cli.py --port COM55 ffc
