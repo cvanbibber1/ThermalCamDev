@@ -7,8 +7,11 @@
 #include <string.h>
 
 
-static uint16_t empty_frame[APP_FRAME_PIXELS];
-static const uint8_t *active_frame = (const uint8_t *)empty_frame;
+/* Before the first frame arrives there is nothing to send, so the host gets
+ * black. That used to be a whole spare frame of zeros; it is now one packet of
+ * zeros reused, which returns 38 kB of RAM to the image codec. */
+static const uint8_t blank_packet[UVC_PACKET_SIZE];
+static const uint8_t *active_frame;
 static uint16_t packet_index;
 /* YUY2 is generated a packet at a time. The class driver copies out of this
  * before returning, and one packet's worth avoids a second full frame in RAM. */
@@ -22,6 +25,10 @@ static const uint8_t *build_yuy2(size_t byte_offset, uint16_t length) {
   lepton_agc_t agc;
   lepton_capture_get_agc(&agc);
   const uint16_t *pixels = (const uint16_t *)(const void *)active_frame;
+  if (pixels == NULL) {
+    memset(yuy2_packet, 0, length);
+    return yuy2_packet;
+  }
 
   for (uint16_t index = 0U; index < length; ++index) {
     size_t position = byte_offset + index;
@@ -79,7 +86,7 @@ static int8_t video_data(uint8_t **buffer, uint16_t *size, uint16_t *index) {
     uint32_t generation;
     const uint16_t *latest = lepton_capture_latest_frame(&generation);
     (void)generation;
-    active_frame = latest == NULL ? (const uint8_t *)empty_frame : (const uint8_t *)latest;
+    active_frame = (const uint8_t *)latest;
   }
 
   /* Send raw counts for whichever index carries Y16 and convert for the other. */
@@ -95,13 +102,17 @@ static int8_t video_data(uint8_t **buffer, uint16_t *size, uint16_t *index) {
     size_t offset = (size_t)packet_index * payload_capacity;
     uint16_t payload =
         packet_index < full_packets ? payload_capacity : remainder;
-    *buffer = radiometric ? (uint8_t *)&active_frame[offset]
-                          : (uint8_t *)build_yuy2(offset, payload);
+    if (active_frame == NULL) {
+      *buffer = (uint8_t *)blank_packet;
+    } else {
+      *buffer = radiometric ? (uint8_t *)&active_frame[offset]
+                            : (uint8_t *)build_yuy2(offset, payload);
+    }
     *size = (uint16_t)(payload + 2U);
     ++packet_index;
   } else {
     /* Header-only packet terminates the payload. */
-    *buffer = (uint8_t *)active_frame;
+    *buffer = (uint8_t *)(active_frame != NULL ? active_frame : blank_packet);
     *size = 2U;
     packet_index = 0U;
   }

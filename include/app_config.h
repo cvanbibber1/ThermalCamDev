@@ -60,3 +60,34 @@
 #define APP_FRAME_BYTES (APP_FRAME_PIXELS * 2U)
 /* Longest a chunked reader may pin the published frame. */
 #define APP_FRAME_HOLD_MS 2000U
+
+/* ------------------------------------------------------- image compression -- */
+
+/* Compress image frames before they go out over RS-422. The link carries
+ * 92,160 bytes a second and a raw frame is 38,400, so uncompressed video is
+ * capped near 2.3 frames a second against a sensor that produces 8.7.
+ * Set to 0 to transmit raw frames, which is the pre-compression behaviour. */
+#define APP_CODEC_ENABLED 1
+
+/* Frames between keyframes. An inter frame cannot be decoded unless the one
+ * before it arrived, so this sets how long the picture stays broken after a
+ * dropped packet: 24 frames is about 2.8 seconds. Shorter recovers faster and
+ * costs bandwidth, because a keyframe is roughly 1.7 times the size. */
+#define APP_CODEC_GOP 24U
+
+/* Encoder output buffer. Measured over 50 real frames: inter averages 9.7 kB
+ * and the largest keyframe was 16.3 kB, so this is about a 20% margin over the
+ * worst case seen. A frame that will not fit is sent uncompressed instead, so
+ * overflowing this costs frame rate and nothing else. */
+#define APP_CODEC_BUFFER_BYTES 20480U
+
+/* Rows encoded per slice, and how long the encoder may keep the core before
+ * giving it back.
+ *
+ * The VoSPI DMA must be serviced every 12.6 ms or the sensor drops into
+ * resync, so the budget sits well under that. The task loop does not come back
+ * often enough to finish a frame one slice per call -- that stretched a 33 ms
+ * encode to about 120 ms of wall clock and cost half the frame rate -- so
+ * slices repeat within a call until the budget is spent. */
+#define APP_CODEC_ROWS_PER_STEP 12U
+#define APP_CODEC_STEP_BUDGET_US 8000U

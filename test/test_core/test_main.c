@@ -2,6 +2,7 @@
 
 #include "protocol/cobs.h"
 #include "protocol/crc.h"
+#include "protocol/frame_codec.h"
 #include "protocol/stp_protocol.h"
 #include "protocol/wire_protocol.h"
 #include "vospi_parser.h"
@@ -349,6 +350,123 @@ static void test_stp_published_command_strings(void) {
   }
 }
 
+
+/* ------------------------------------------------------ frame codec ----- */
+
+static uint16_t codec_source[APP_FRAME_PIXELS];
+static uint16_t codec_reference[APP_FRAME_PIXELS];
+static uint16_t codec_result[APP_FRAME_PIXELS];
+static uint8_t codec_stream[APP_FRAME_BYTES + 64U];
+
+/* A deterministic stand-in for a thermal scene: a smooth gradient, a hot bar
+ * with hard edges, and a little noise, so the predictor meets both the flat
+ * regions it exploits and the discontinuities it must not corrupt. */
+static void fill_scene(uint16_t *frame, uint32_t seed) {
+  uint32_t state = seed;
+  for (uint32_t y = 0U; y < APP_FRAME_HEIGHT; ++y) {
+    for (uint32_t x = 0U; x < APP_FRAME_WIDTH; ++x) {
+      state = (state * 1103515245U) + 12345U;
+      uint32_t value = 29000U + (y * 3U) + (x >> 2);
+      if ((y > 40U) && (y < 70U) && (x > 50U) && (x < 110U)) {
+        value += 900U;
+      }
+      value += (state >> 28) & 3U;
+      frame[(y * APP_FRAME_WIDTH) + x] = (uint16_t)value;
+    }
+  }
+}
+
+static void round_trip(const uint16_t *frame, const uint16_t *reference,
+                       uint8_t expected_mode) {
+  uint8_t mode = 0xFFU;
+  size_t length = frame_codec_encode(frame, reference, codec_stream,
+                                     sizeof(codec_stream), &mode, NULL);
+  TEST_ASSERT_GREATER_THAN_UINT(0U, length);
+  TEST_ASSERT_EQUAL_UINT8(expected_mode, mode);
+  memset(codec_result, 0, sizeof(codec_result));
+  TEST_ASSERT_TRUE(
+      frame_codec_decode(codec_stream, length, mode, reference, codec_result));
+  TEST_ASSERT_EQUAL_UINT16_ARRAY(frame, codec_result, APP_FRAME_PIXELS);
+}
+
+static void test_codec_intra_is_lossless(void) {
+  fill_scene(codec_source, 1U);
+  round_trip(codec_source, NULL, FRAME_CODEC_MODE_INTRA);
+}
+
+static void test_codec_inter_is_lossless(void) {
+  fill_scene(codec_reference, 1U);
+  fill_scene(codec_source, 2U);
+  round_trip(codec_source, codec_reference, FRAME_CODEC_MODE_INTER);
+}
+
+/* The extremes of the 16-bit range, which is where a sign or width mistake in
+ * the residual coding shows up. */
+static void test_codec_survives_extreme_pixels(void) {
+  for (uint32_t index = 0U; index < APP_FRAME_PIXELS; ++index) {
+    codec_reference[index] = (uint16_t)((index & 1U) ? 0xFFFFU : 0U);
+    codec_source[index] = (uint16_t)((index & 1U) ? 0U : 0xFFFFU);
+  }
+  uint8_t mode = 0xFFU;
+  size_t length = frame_codec_encode(codec_source, codec_reference, codec_stream,
+                                     sizeof(codec_stream), &mode, NULL);
+  TEST_ASSERT_GREATER_THAN_UINT(0U, length);
+  memset(codec_result, 0, sizeof(codec_result));
+  TEST_ASSERT_TRUE(frame_codec_decode(codec_stream, length, mode,
+                                      codec_reference, codec_result));
+  TEST_ASSERT_EQUAL_UINT16_ARRAY(codec_source, codec_result, APP_FRAME_PIXELS);
+}
+
+/* An unchanged scene is the case the whole design is built around, so its
+ * compression ratio is worth asserting rather than assuming. */
+static void test_codec_static_scene_is_small(void) {
+  fill_scene(codec_reference, 3U);
+  memcpy(codec_source, codec_reference, sizeof(codec_source));
+  uint8_t mode = 0xFFU;
+  size_t length = frame_codec_encode(codec_source, codec_reference, codec_stream,
+                                     sizeof(codec_stream), &mode, NULL);
+  TEST_ASSERT_EQUAL_UINT8(FRAME_CODEC_MODE_INTER, mode);
+  TEST_ASSERT_LESS_THAN_UINT(APP_FRAME_BYTES / 8U, length);
+}
+
+/* A truncated stream must be reported, not decoded into a plausible-looking
+ * image, because the link does drop packets. */
+static void test_codec_rejects_truncated_stream(void) {
+  fill_scene(codec_source, 4U);
+  uint8_t mode = 0xFFU;
+  size_t length = frame_codec_encode(codec_source, NULL, codec_stream,
+                                     sizeof(codec_stream), &mode, NULL);
+  TEST_ASSERT_GREATER_THAN_UINT(0U, length);
+  TEST_ASSERT_FALSE(
+      frame_codec_decode(codec_stream, length / 2U, mode, NULL, codec_result));
+}
+
+/* A corrupted stream that still decodes to the right length is caught by the
+ * checksum the encoder puts at the front. */
+static void test_codec_checksum_catches_corruption(void) {
+  fill_scene(codec_source, 5U);
+  uint8_t mode = 0xFFU;
+  size_t length = frame_codec_encode(codec_source, NULL, codec_stream,
+                                     sizeof(codec_stream), &mode, NULL);
+  TEST_ASSERT_GREATER_THAN_UINT(64U, length);
+  codec_stream[length / 2U] ^= 0x20U;
+  TEST_ASSERT_FALSE(
+      frame_codec_decode(codec_stream, length, mode, NULL, codec_result));
+}
+
+/* Inter frames are undecodable without the frame they were coded against, and
+ * the decoder must say so rather than emit noise. */
+static void test_codec_inter_needs_reference(void) {
+  fill_scene(codec_reference, 6U);
+  fill_scene(codec_source, 7U);
+  uint8_t mode = 0xFFU;
+  size_t length = frame_codec_encode(codec_source, codec_reference, codec_stream,
+                                     sizeof(codec_stream), &mode, NULL);
+  TEST_ASSERT_EQUAL_UINT8(FRAME_CODEC_MODE_INTER, mode);
+  TEST_ASSERT_FALSE(
+      frame_codec_decode(codec_stream, length, mode, NULL, codec_result));
+}
+
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
@@ -370,5 +488,12 @@ int main(int argc, char **argv) {
   RUN_TEST(test_stp_rejects_undersized_destination);
   RUN_TEST(test_stp_published_command_strings);
   RUN_TEST(test_stp_published_experiment_commands);
+  RUN_TEST(test_codec_intra_is_lossless);
+  RUN_TEST(test_codec_inter_is_lossless);
+  RUN_TEST(test_codec_survives_extreme_pixels);
+  RUN_TEST(test_codec_static_scene_is_small);
+  RUN_TEST(test_codec_rejects_truncated_stream);
+  RUN_TEST(test_codec_checksum_catches_corruption);
+  RUN_TEST(test_codec_inter_needs_reference);
   return UNITY_END();
 }

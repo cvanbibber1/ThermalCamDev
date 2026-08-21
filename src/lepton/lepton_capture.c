@@ -445,12 +445,24 @@ void lepton_capture_get_agc(lepton_agc_t *agc) {
   }
 }
 
+/* Held by the encoder, independently of the chunked-reader hold above. */
+static bool codec_held;
+
+static void apply_hold(void) {
+  vospi_set_hold(&parser, frame_held || codec_held);
+}
+
 void lepton_capture_hold_frame(bool hold) {
   if (hold && !frame_held) {
     hold_started_ms = HAL_GetTick();
   }
   frame_held = hold;
-  vospi_set_hold(&parser, hold);
+  apply_hold();
+}
+
+void lepton_capture_hold_for_codec(bool hold) {
+  codec_held = hold;
+  apply_hold();
 }
 
 int lepton_capture_run_ffc(void) {

@@ -15,9 +15,18 @@
  * envelope but says nothing about payload contents, so these must be agreed
  * with DICE before flight. Bumped whenever a field moves. */
 #define STP_LRT_LAYOUT_VERSION 1U
-#define STP_HRT_LAYOUT_VERSION 1U
+/* Version 2 replaced the 16-bit version field with an 8-bit version and an
+ * 8-bit codec mode, so an image is no longer assumed to be raw pixels. A
+ * decoder tells them apart by the byte at offset 14: version 1 left it zero. */
+#define STP_HRT_LAYOUT_VERSION 2U
 
 /* HRT payload is 1280 bytes; the first 16 carry the reassembly header. */
+/* Set in the mode byte of the last chunk of a frame. Compressed frames are
+ * transmitted while they are still being encoded, so their chunk count is not
+ * known when the first chunk goes out; the count is sent as zero and this flag
+ * marks the end instead. */
+#define STP_HRT_MODE_FINAL 0x80U
+
 #define STP_HRT_HEADER_SIZE 16U
 #define STP_HRT_CHUNK_BYTES (1280U - STP_HRT_HEADER_SIZE)
 

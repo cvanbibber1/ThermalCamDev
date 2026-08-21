@@ -41,6 +41,14 @@ int lepton_capture_run_ffc(void);
  * see the note in usb_video_if.c. */
 void lepton_capture_hold_frame(bool hold);
 
+/* A second, independent hold for the image encoder.
+ *
+ * The encoder runs across many task calls and needs the published frame to
+ * stay still for all of them. It cannot share the hold above: the two would
+ * release each other's pin. The frame is pinned while either asks for it. This
+ * one has no timeout, because the encoder always finishes. */
+void lepton_capture_hold_for_codec(bool hold);
+
 /* Scene bounds of the published frame, refreshed whenever one is published.
  * The USB video callback maps 16-bit counts to 8-bit luma from these, so they
  * are derived here in the task loop rather than in interrupt context. */

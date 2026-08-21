@@ -22,6 +22,9 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import frame_codec
+
 try:
     import serial
 except ImportError:  # pragma: no cover
@@ -60,6 +63,8 @@ SHUTTER_MODES = {0: "manual", 1: "auto", 2: "external"}
 FRAME_BYTES = 160 * 120 * 2
 HRT_HEADER = 16
 HRT_CHUNK_BYTES = 1280 - HRT_HEADER
+# A compressed frame is far smaller, but an uncompressed one still has to fit.
+MAX_ENCODED_BYTES = FRAME_BYTES
 
 LEPTON_STATES = {
     0: "power-off", 1: "reset-hold", 2: "booting", 3: "configuring",
@@ -163,15 +168,31 @@ def decode_lrt(codec: Codec, payload: bytes) -> dict:
 
 
 class FrameAssembler:
-    """Collects HRT chunks into whole frames, discarding mixed generations."""
+    """Collects HRT chunks into whole frames, discarding mixed generations.
+
+    Images may arrive compressed. The header byte at offset 14 says which
+    layout is in use: version 1 was always raw pixels, version 2 adds a codec
+    mode at offset 15 and a frame is then a variable number of chunks. Both are
+    accepted so captures taken before compression still decode.
+    """
 
     def __init__(self) -> None:
         self.generation = None
-        self.buffer = bytearray(FRAME_BYTES)
+        self.buffer = bytearray(MAX_ENCODED_BYTES)
         self.seen: set[int] = set()
         self.expected = 0
+        self.encoded_bytes = 0
+        self.have_final = False
+        self.mode = frame_codec.MODE_RAW
         self.completed = 0
         self.discarded = 0
+        self.undecodable = 0
+        self.compressed_bytes = 0
+        self.stream = frame_codec.Stream()
+
+    def complete(self) -> bool:
+        """Every chunk up to the flagged last one has arrived."""
+        return self.expected > 0 and len(self.seen) >= self.expected
 
     def push(self, codec: Codec, payload: bytes) -> bytes | None:
         generation = codec.u32(payload, 0)
@@ -179,24 +200,46 @@ class FrameAssembler:
         total = codec.u16(payload, 6)
         offset = codec.u32(payload, 8)
         length = codec.u16(payload, 12)
-        if offset + length > FRAME_BYTES or total == 0:
+        version = payload[14]
+        raw_mode = payload[15] if version >= 2 else frame_codec.MODE_RAW
+        mode = raw_mode & frame_codec.MODE_MASK
+        final = bool(raw_mode & frame_codec.MODE_FINAL)
+        if offset + length > MAX_ENCODED_BYTES:
+            return None
+        if total == 0 and not (version >= 2):
             return None
 
         if generation != self.generation:
-            if self.generation is not None and len(self.seen) < self.expected:
+            if self.generation is not None and not self.complete():
                 self.discarded += 1
+                # A frame that never completed leaves the decoder without the
+                # reference the next difference frame needs.
+                self.stream.previous = None
             self.generation = generation
             self.seen.clear()
             self.expected = total
+            self.encoded_bytes = 0
+            self.mode = mode
 
         self.buffer[offset:offset + length] = payload[HRT_HEADER:HRT_HEADER + length]
         self.seen.add(index)
-        if len(self.seen) >= self.expected:
-            self.completed += 1
-            self.seen.clear()
-            self.generation = None
-            return bytes(self.buffer)
-        return None
+        self.encoded_bytes = max(self.encoded_bytes, offset + length)
+        if final:
+            # The flagged chunk is the last, so now the count is known.
+            self.expected = index + 1
+        if not self.complete():
+            return None
+
+        encoded = bytes(self.buffer[:self.encoded_bytes])
+        self.seen.clear()
+        self.generation = None
+        frame = self.stream.push(encoded, self.mode)
+        if frame is None:
+            self.undecodable += 1
+            return None
+        self.completed += 1
+        self.compressed_bytes += self.encoded_bytes
+        return frame.astype("<u2").tobytes()
 
 
 def main() -> int:
@@ -229,6 +272,14 @@ def main() -> int:
         args.save_frames.mkdir(parents=True, exist_ok=True)
 
     port = serial.Serial(args.port, args.baud, timeout=0.2)
+    # Decoding a compressed frame takes tens of milliseconds, and nothing is
+    # read from the port while it happens. The driver's default buffer is small
+    # enough that the gap loses bytes, which shows up as CRC errors and partial
+    # frames that look like a bad link. Ask for a megabyte instead.
+    try:
+        port.set_buffer_size(rx_size=1 << 20, tx_size=1 << 16)
+    except (AttributeError, NotImplementedError):
+        pass  # Not a Windows driver; the default is usually generous enough.
     if args.request:
         types = {"lrt": TYPE_LRT, "hrt-go": TYPE_HRT_GO,
                  "hrt-stop": TYPE_HRT_STOP,
@@ -330,6 +381,11 @@ def main() -> int:
     print(f"\n{elapsed:.1f}s: {counts['lrt']} LRT, {counts['hrt']} HRT packets, "
           f"{assembler.completed} frames reassembled, {assembler.discarded} partial, "
           f"{counts['crc_error']} CRC errors, {counts['other_target']} for other targets")
+    if assembler.completed:
+        mean = assembler.compressed_bytes / assembler.completed
+        print(f"{assembler.completed / elapsed:.2f} frames/s, "
+              f"{mean:.0f} bytes/frame encoded, {FRAME_BYTES / mean:.2f}x compression"
+              + (f", {assembler.undecodable} undecodable" if assembler.undecodable else ""))
     if counts["lrt"] == 0 and counts["hrt"] == 0:
         print("Nothing decoded. Check wiring and baud, then try --little-endian "
               "or a different --crc-seed; neither is fixed by the specification.")

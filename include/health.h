@@ -28,6 +28,13 @@ typedef struct {
   uint32_t rs485_rx_overruns;
   uint32_t rs485_crc_errors;
   uint32_t rs485_tx_busy;
+  /* Frames the encoder could not fit, sent uncompressed instead. */
+  uint32_t codec_raw_fallback;
+  /* Keyframes emitted, whether on the interval or forced by a gap. */
+  uint32_t codec_keyframes;
+  /* Longest encode seen, in microseconds. The VoSPI DMA must be serviced every
+   * 12.6 ms, so this is the margin that keeps the sensor out of resync. */
+  uint32_t codec_encode_us_max;
 } health_counters_t;
 
 extern health_counters_t g_health;
