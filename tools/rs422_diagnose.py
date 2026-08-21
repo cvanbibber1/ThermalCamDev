@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Diagnose an RS-422 link that carries traffic one way only.
+"""Diagnose an RS-422 link.
 
-The camera transmits perfectly and receives nothing, which narrows the fault to
-the camera's receive pair or its transceiver's receiver-enable. These modes
-give you something steady to probe, and a way to prove which end is at fault.
+Use this when the camera transmits but ignores commands, or goes quiet
+altogether. These modes give you something steady to probe and a way to prove
+which end is at fault. The fault seen on this build was cross-wiring: the
+camera's receive pair landed on the converter's receive terminals, so both ends
+listened and neither was heard.
 
-    python tools/rs422_diagnose.py --port COM39 --mode pattern
-    python tools/rs422_diagnose.py --port COM39 --mode loopback
-    python tools/rs422_diagnose.py --port COM39 --mode listen
+    python tools/rs422_diagnose.py --port COM34 --mode pattern
+    python tools/rs422_diagnose.py --port COM34 --mode loopback
+    python tools/rs422_diagnose.py --port COM34 --mode listen
 """
 
 from __future__ import annotations
