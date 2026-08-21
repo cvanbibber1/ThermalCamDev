@@ -385,7 +385,10 @@ def main() -> int:
         mean = assembler.compressed_bytes / assembler.completed
         print(f"{assembler.completed / elapsed:.2f} frames/s, "
               f"{mean:.0f} bytes/frame encoded, {FRAME_BYTES / mean:.2f}x compression"
-              + (f", {assembler.undecodable} undecodable" if assembler.undecodable else ""))
+              + (f", {assembler.undecodable} undecodable "
+                 f"({assembler.stream.checksum_failed} corrupt, "
+                 f"{assembler.stream.no_reference} without a reference)"
+                 if assembler.undecodable else ""))
     if counts["lrt"] == 0 and counts["hrt"] == 0:
         print("Nothing decoded. Check wiring and baud, then try --little-endian "
               "or a different --crc-seed; neither is fixed by the specification.")

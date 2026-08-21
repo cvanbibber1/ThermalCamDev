@@ -69,34 +69,47 @@ static uint32_t correcting_until_ms;
 static bool burst_active;
 static uint8_t pending_capture_target;
 
-/* The encoded image awaiting transmission, and the frame it was coded
- * against. Holding a private reference rather than reading the parser's spare
- * buffer is what lets the encoder guarantee the decoder's reference matches:
- * the parser reclaims its other buffer as soon as the next frame starts. */
+/* Encoded frames waiting to go out, and the frame they were coded against.
+ *
+ * There are two output slots so the encoder can start the next frame while the
+ * current one is still draining down the link. With one slot the two ran end
+ * to end -- about 50 ms of encoding then 126 ms of transmission -- and the
+ * link sat idle for the first part of every cycle.
+ *
+ * The reference is private rather than borrowed from the parser's spare
+ * buffer, because the parser reclaims that as soon as the next frame starts,
+ * and the decoder needs the reference to match exactly what was sent. */
 #if APP_CODEC_ENABLED
-static uint8_t codec_buffer[APP_CODEC_BUFFER_BYTES];
+typedef struct {
+  uint8_t buffer[APP_CODEC_BUFFER_BYTES];
+  size_t length;   /* encoded size, once complete */
+  uint32_t generation;
+  uint8_t mode;
+  bool complete;   /* the encoder has finished this frame */
+  /* Set when the frame did not compress and is being sent straight from the
+   * capture buffer instead of from `buffer`. */
+  const uint8_t *raw_source;
+} codec_slot_t;
+
+static codec_slot_t codec_slots[2];
+/* A two-slot ring. `write` is the slot the encoder takes next, `read` the one
+ * the transmitter is working through, and `used` how many hold a frame that
+ * has not finished going out. */
+static uint8_t codec_write;
+static uint8_t codec_read;
+static uint8_t codec_used;
+/* Index of the slot being encoded, or -1 when the encoder is idle. */
+static int8_t codec_encoding = -1;
+
 static uint16_t codec_reference[APP_FRAME_PIXELS];
 static bool codec_reference_valid;
 static uint32_t codec_frames_since_key;
-static uint8_t codec_mode;
-static size_t codec_length;
-/* Where the encoder has got to. A frame is compressed over several task calls
- * and only then handed to the chunker. */
-typedef enum {
-  CODEC_IDLE = 0, /* waiting for a new frame */
-  CODEC_ACTIVE,   /* encoding, transmitting, or both */
-} codec_state_t;
-static codec_state_t codec_state;
-/* True once the encoder has finished this frame; until then only the bytes it
- * has already produced may be transmitted. */
-static bool codec_complete;
 static frame_codec_encoder_t codec_encoder;
 static const uint16_t *codec_source_frame;
-static uint32_t codec_generation;
+static uint32_t codec_last_generation;
 static bool codec_keyframe;
-/* Set while a raw frame is going out, when the chunker reads the capture
- * buffer directly instead of the encoder's output. */
-static const uint8_t *codec_raw_source;
+/* Reported in vitals so the achieved compression is visible from the ground. */
+static size_t codec_length;
 #endif
 
 static uint16_t chunks_of(size_t bytes) {
@@ -125,63 +138,89 @@ static void record_encode_time(uint32_t started) {
   }
 }
 
-/* Begin compressing a frame, choosing between a keyframe and a difference
- * against the previous one. Keyframes go out on a fixed interval so a decoder
- * that missed a packet recovers, and whenever the reference is not the
- * immediately preceding frame, because the decoder has no other way to know.
+/* Begin compressing a frame into the next free slot, choosing between a
+ * keyframe and a difference against the previous one.
  *
- * The published frame is pinned for the whole encode. A single pass cannot be
- * overtaken by the parser, but this one runs across several task calls and
- * would be. */
+ * Keyframes go out on a fixed interval so a decoder that missed a packet
+ * recovers. What the reference has to match is the last frame the ground
+ * decoded, not the frame immediately before this one off the sensor: the link
+ * is slower than the sensor, so most captured frames are never sent, and
+ * demanding consecutive generations made almost every frame a keyframe.
+ *
+ * The published frame is deliberately not pinned. Pinning it stopped the
+ * parser republishing for as long as the encode ran, and with two slots the
+ * encoder runs almost continuously: the capture rate fell from 8.8 frames a
+ * second to 6.5, which then capped the link.
+ *
+ * Reading it unpinned is safe for the same reason the UVC path is, and with
+ * more margin. If the parser reclaims this buffer partway through, it begins
+ * refilling from row zero at about one row per millisecond, while the encoder
+ * is already further down and moving at four. It cannot be overtaken.
+ *
+ * Should that ever fail, the failure is benign rather than silent: the
+ * checksum and the reference copy are both built from the same reads as the
+ * encode, so the frame still decodes and verifies, and the worst a reader sees
+ * is a seam where two images meet. */
 static void encode_begin(const uint16_t *frame, uint32_t generation,
                          bool force_keyframe) {
-  /* What matters is that the reference matches the last frame the ground
-   * decoded, not that it was the immediately preceding frame off the sensor.
-   * The link is slower than the sensor, so most captured frames are never
-   * sent; requiring consecutive generations here made almost every frame a
-   * keyframe and cost about a third of the achievable rate. A wider gap
-   * between reference and frame only means a slightly larger difference. */
   bool keyframe = force_keyframe || !codec_reference_valid ||
                   (codec_frames_since_key >= APP_CODEC_GOP);
 
+  uint8_t slot = codec_write;
+  codec_slots[slot].generation = generation;
+  codec_slots[slot].mode =
+      keyframe ? FRAME_CODEC_MODE_INTRA : FRAME_CODEC_MODE_INTER;
+  codec_slots[slot].complete = false;
+  codec_slots[slot].length = 0U;
+  codec_slots[slot].raw_source = NULL;
+
+  codec_encoding = (int8_t)slot;
   codec_source_frame = frame;
-  codec_generation = generation;
+  codec_last_generation = generation;
   codec_keyframe = keyframe;
-  codec_mode = keyframe ? FRAME_CODEC_MODE_INTRA : FRAME_CODEC_MODE_INTER;
-  codec_state = CODEC_ACTIVE;
-  codec_complete = false;
-  hrt_chunk = 0U;
-  lepton_capture_hold_for_codec(true);
+
   /* The reference rolls forward in place: the encoder consumes the old value
    * of each pixel and writes the new one as it goes, so what is left behind is
    * exactly the frame that was transmitted. */
   frame_codec_encode_begin(&codec_encoder, frame,
-                           keyframe ? NULL : codec_reference, codec_buffer,
-                           sizeof(codec_buffer), codec_reference);
+                           keyframe ? NULL : codec_reference,
+                           codec_slots[slot].buffer,
+                           sizeof(codec_slots[slot].buffer), codec_reference);
 }
 
-/* Fall back to sending the frame exactly as captured. The decoder is then
- * without a reference it can trust, so the next frame must be a keyframe.
+/* Hand the encoder's slot over to the transmitter. */
+static void encode_finish(void) {
+  codec_write ^= 1U;
+  ++codec_used;
+  codec_encoding = -1;
+}
+
+/* Fall back to sending the frame exactly as captured.
  *
  * The pin stays on: unlike a compressed frame, this one is read straight out
  * of the capture buffer over every chunk, so it has to stay still until the
- * last one is away. The chunker releases it. */
+ * last one is away. The chunker releases it. The decoder is left without a
+ * reference it can trust, so the next frame must be a keyframe. */
 static void encode_give_up(void) {
-  codec_mode = FRAME_CODEC_MODE_RAW;
-  codec_raw_source = (const uint8_t *)codec_source_frame;
-  codec_length = APP_FRAME_BYTES;
+  uint8_t slot = (uint8_t)codec_encoding;
+  lepton_capture_hold_for_codec(true);
+  codec_slots[slot].mode = FRAME_CODEC_MODE_RAW;
+  codec_slots[slot].raw_source = (const uint8_t *)codec_source_frame;
+  codec_slots[slot].length = APP_FRAME_BYTES;
+  codec_slots[slot].complete = true;
   codec_reference_valid = false;
   health_increment(&g_health.codec_raw_fallback);
-  codec_complete = true;
+  encode_finish();
 }
 
 /* Bands of rows, up to the time budget. Called every task iteration, including
  * while a packet is going out, because the transmit is DMA and the core is
  * free meanwhile. */
 static void encode_step(void) {
-  if ((codec_state != CODEC_ACTIVE) || codec_complete) {
+  if (codec_encoding < 0) {
     return;
   }
+  uint8_t slot = (uint8_t)codec_encoding;
   uint32_t started = DWT->CYCCNT;
   uint32_t budget = APP_CODEC_STEP_BUDGET_US * (SystemCoreClock / 1000000U);
   size_t length = 0U;
@@ -203,47 +242,61 @@ static void encode_step(void) {
   if (step == FRAME_CODEC_OVERFLOW) {
     /* Chunks of the abandoned attempt may already be on the wire. The ground
      * discards a frame whose chunks stop arriving, and the checksum would
-     * reject it in any case, so the only thing that matters here is that both
-     * ends agree there is no usable reference any more. */
+     * reject it in any case, so all that matters here is that both ends agree
+     * there is no usable reference any more. */
     codec_reference_valid = false;
     if (!codec_keyframe) {
-      encode_begin(codec_source_frame, codec_generation, true);
+      encode_begin(codec_source_frame, codec_slots[slot].generation, true);
       return;
     }
     encode_give_up();
     return;
   }
 
-  /* The image now lives in the encoder's output, so the sensor buffer is free
-   * to be republished while the frame drains down the link. */
-  lepton_capture_hold_for_codec(false);
+  codec_slots[slot].length = length;
+  codec_slots[slot].complete = true;
   codec_length = length;
-  codec_raw_source = NULL;
-  if (codec_mode == FRAME_CODEC_MODE_INTRA) {
+  if (codec_slots[slot].mode == FRAME_CODEC_MODE_INTRA) {
     codec_frames_since_key = 0U;
     health_increment(&g_health.codec_keyframes);
   } else {
     ++codec_frames_since_key;
   }
   codec_reference_valid = true;
-  codec_complete = true;
+  encode_finish();
 }
 
-/* Start an encode when the stream wants a frame and a new one has arrived. */
+/* Keep the encoder fed: step whatever is in progress, and otherwise start the
+ * next frame as soon as a slot is free, without waiting for the previous one
+ * to finish transmitting. */
 static void codec_task(void) {
-  if (codec_state == CODEC_ACTIVE) {
+  if (codec_encoding >= 0) {
     encode_step();
     return;
   }
-  if (!current.hrt_enabled) {
+  if (!current.hrt_enabled || (codec_used >= 2U)) {
     return;
   }
   uint32_t generation = 0U;
   const uint16_t *frame = lepton_capture_latest_frame(&generation);
-  if ((frame == NULL) || (generation == codec_generation)) {
+  if ((frame == NULL) || (generation == codec_last_generation)) {
     return;  /* nothing new to send yet */
   }
   encode_begin(frame, generation, false);
+}
+
+/* Abandon everything in flight, releasing the pin so capture is not stalled. */
+static void codec_reset(void) {
+  lepton_capture_hold_for_codec(false);
+  codec_encoding = -1;
+  codec_used = 0U;
+  codec_read = 0U;
+  codec_write = 0U;
+  codec_slots[0].complete = false;
+  codec_slots[1].complete = false;
+  /* Whatever was half sent is a gap on the ground, so the next frame coded
+   * must stand on its own. */
+  codec_reference_valid = false;
 }
 #endif
 
@@ -281,8 +334,7 @@ bool stp_link_init(void) {
   pending_lrt = false;
   burst_active = false;
 #if APP_CODEC_ENABLED
-  codec_state = CODEC_IDLE;
-  codec_reference_valid = false;
+  codec_reset();
 #endif
   correcting_until_ms = 0U;
   stp_receiver_init(&receiver);
@@ -388,13 +440,18 @@ static size_t build_hrt_payload(uint8_t *out, size_t capacity) {
   }
 
 #if APP_CODEC_ENABLED
-  /* A compressed frame is transmitted while it is still being encoded, so its
-   * total size is not known when the first chunk goes out. The count is sent
-   * as zero and the last chunk is flagged instead. */
-  hrt_generation = codec_generation;
-  hrt_total_chunks = codec_complete ? chunks_of(codec_length) : 0U;
-  hrt_length = codec_complete ? codec_length
-                              : frame_codec_encode_available(&codec_encoder);
+  /* A compressed frame may still be encoding while its opening chunks go out,
+   * so the total size is not always known. The count is then sent as zero and
+   * the last chunk is flagged instead. */
+  const codec_slot_t *sending = &codec_slots[codec_read];
+  hrt_generation = sending->generation;
+  if (sending->complete) {
+    hrt_total_chunks = chunks_of(sending->length);
+    hrt_length = sending->length;
+  } else {
+    hrt_total_chunks = 0U;
+    hrt_length = frame_codec_encode_available(&codec_encoder);
+  }
 #else
   if (hrt_chunk == 0U) {
     hrt_generation = generation;
@@ -404,9 +461,9 @@ static size_t build_hrt_payload(uint8_t *out, size_t capacity) {
 #endif
 
 #if APP_CODEC_ENABLED
-  const uint8_t *source =
-      (codec_raw_source != NULL) ? codec_raw_source : codec_buffer;
-  uint8_t mode = codec_mode;
+  const uint8_t *source = (sending->raw_source != NULL) ? sending->raw_source
+                                                        : sending->buffer;
+  uint8_t mode = sending->mode;
 #else
   const uint8_t *source = (const uint8_t *)frame;
   uint8_t mode = FRAME_CODEC_MODE_RAW;
@@ -414,6 +471,7 @@ static size_t build_hrt_payload(uint8_t *out, size_t capacity) {
 
   uint32_t offset = (uint32_t)hrt_chunk * STP_HRT_CHUNK_BYTES;
   if ((uint32_t)hrt_length <= offset) {
+    health_increment(&g_health.codec_chunk_starved);
     return 0U;  /* the encoder has not produced this chunk yet */
   }
   uint32_t remaining = (uint32_t)hrt_length - offset;
@@ -422,10 +480,11 @@ static size_t build_hrt_payload(uint8_t *out, size_t capacity) {
 #if APP_CODEC_ENABLED
   /* Only a complete chunk may go out early; a short one is the end of the
    * frame, which is only true once the encoder has finished. */
-  if (!codec_complete && (length < STP_HRT_CHUNK_BYTES)) {
+  if (!sending->complete && (length < STP_HRT_CHUNK_BYTES)) {
+    health_increment(&g_health.codec_chunk_starved);
     return 0U;
   }
-  bool final_chunk = codec_complete && (remaining <= STP_HRT_CHUNK_BYTES);
+  bool final_chunk = sending->complete && (remaining <= STP_HRT_CHUNK_BYTES);
 #else
   bool final_chunk = (remaining <= STP_HRT_CHUNK_BYTES);
 #endif
@@ -446,9 +505,13 @@ static size_t build_hrt_payload(uint8_t *out, size_t capacity) {
   if (final_chunk) {
     hrt_chunk = 0U;
 #if APP_CODEC_ENABLED
-    lepton_capture_hold_for_codec(false);
-    codec_state = CODEC_IDLE;
-    codec_complete = false;
+    /* A raw frame is read from the capture buffer, so the pin is only released
+     * once its last chunk is away. */
+    if (sending->raw_source != NULL) {
+      lepton_capture_hold_for_codec(false);
+    }
+    codec_read ^= 1U;
+    --codec_used;
 #endif
   }
   return STP_HRT_PAYLOAD_SIZE;
@@ -519,15 +582,9 @@ static void stop_capture(void) {
   current.capture_state = (uint8_t)STP_CAPTURE_IDLE;
   hrt_chunk = 0U;
 #if APP_CODEC_ENABLED
-  /* Abandon any encode in progress and unpin the frame, or capture stalls for
-   * as long as the stream stays stopped. Whatever was half sent is now a gap
-   * on the ground, so the next frame must be a keyframe. */
-  if ((codec_state == CODEC_ACTIVE) && !codec_complete) {
-    lepton_capture_hold_for_codec(false);
-  }
-  codec_state = CODEC_IDLE;
-  codec_complete = false;
-  codec_reference_valid = false;
+  /* Abandon anything in flight, or capture stalls for as long as the stream
+   * stays stopped. */
+  codec_reset();
 #endif
 }
 
@@ -667,7 +724,7 @@ void stp_link_task(void) {
 
   /* Whatever link is left carries the image, while the stream is enabled. */
 #if APP_CODEC_ENABLED
-  bool image_ready = (codec_state == CODEC_ACTIVE);
+  bool image_ready = (codec_used > 0U);
 #else
   bool image_ready = true;
 #endif

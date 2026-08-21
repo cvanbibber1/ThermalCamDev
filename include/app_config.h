@@ -69,11 +69,18 @@
  * Set to 0 to transmit raw frames, which is the pre-compression behaviour. */
 #define APP_CODEC_ENABLED 1
 
-/* Frames between keyframes. An inter frame cannot be decoded unless the one
- * before it arrived, so this sets how long the picture stays broken after a
- * dropped packet: 24 frames is about 2.8 seconds. Shorter recovers faster and
- * costs bandwidth, because a keyframe is roughly 1.7 times the size. */
-#define APP_CODEC_GOP 24U
+/* Frames between keyframes.
+ *
+ * A difference frame cannot be decoded unless the one before it arrived, so a
+ * single lost packet costs every frame up to the next keyframe. This is the
+ * bound on that damage: at the rate the link actually achieves, 12 frames is
+ * about two seconds. One dropped packet on the bench cost 24 consecutive
+ * frames with the interval at 24.
+ *
+ * Shorter recovers faster and costs bandwidth, because a keyframe is roughly
+ * 1.7 times the size of a difference frame; halving the interval from 24 costs
+ * about 2%. */
+#define APP_CODEC_GOP 12U
 
 /* Encoder output buffer. Measured over 50 real frames: inter averages 9.7 kB
  * and the largest keyframe was 16.3 kB, so this is about a 20% margin over the

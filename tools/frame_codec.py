@@ -167,6 +167,11 @@ class Stream:
         self.previous: np.ndarray | None = None
         self.decoded = 0
         self.failed = 0
+        # Split by cause: a missing reference means an earlier frame was lost
+        # and this one is collateral, whereas a checksum failure means this
+        # frame itself arrived wrong.
+        self.no_reference = 0
+        self.checksum_failed = 0
 
     def push(self, payload: bytes, mode: int) -> np.ndarray | None:
         """Decode one frame, or return None and count it if that is not possible.
@@ -178,8 +183,12 @@ class Stream:
         """
         try:
             frame = decode(payload, mode, self.previous)
-        except CodecError:
+        except CodecError as error:
             self.failed += 1
+            if "no reference" in str(error):
+                self.no_reference += 1
+            else:
+                self.checksum_failed += 1
             self.previous = None
             return None
         self.previous = frame

@@ -35,6 +35,10 @@ typedef struct {
   /* Longest encode seen, in microseconds. The VoSPI DMA must be serviced every
    * 12.6 ms, so this is the margin that keeps the sensor out of resync. */
   uint32_t codec_encode_us_max;
+  /* Times the transmitter wanted an image chunk and the encoder had not
+   * produced one yet. Distinguishes a link starved by the encoder from one
+   * starved by how often the task loop comes round. */
+  uint32_t codec_chunk_starved;
 } health_counters_t;
 
 extern health_counters_t g_health;
