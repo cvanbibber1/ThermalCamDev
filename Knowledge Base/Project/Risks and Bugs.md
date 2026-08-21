@@ -8,54 +8,22 @@ last-reviewed: 2026-08-18
 
 ## P0 - blocks connection of a multidrop bus
 
-- [ ] **The camera receives nothing usable over RS-422.** Transmission is
-  faultless: 79,462 bytes/s at 921600 with no checksum failures. Reception
-  never produces a packet, and the corrupt-packet counters stay at zero too,
-  so the four-byte sync never survives intact.
+- [x] **RS-422 receive resolved 2026-08-21: the pairs were cross-wired.** The
+  camera's receiver inputs A and B had been landed on the converter's receive
+  terminals, so two inputs faced each other with nothing driving them, while
+  the camera's driver Y and Z faced the converter's driver. Moving A and B onto
+  the converter's transmit pair fixed it immediately: five requests sent, five
+  counted, with no checksum or type errors.
 
-  Measured 2026-08-20 by reading the camera's registers while it ran. These are
-  ruled out:
+  Worth recording because the symptom pointed away from the cause. Transmission
+  was faultless throughout, which made the wiring look half-proven, and the
+  link passed some bytes at 115200 while passing none above 150 kbps, which
+  looked like a bandwidth limit rather than a wiring error.
 
-  | Ruled out | Evidence |
-  |---|---|
-  | Receiver disabled | `RE` confirmed tied to ground by inspection |
-  | Converter driver gated by handshake | RTS and DTR make no difference in any of four combinations |
-  | Baud misconfiguration | `BRR` verified correct at both 921600 and 115200 |
-  | Firmware receive path | UART is TX/RX, DMA runs, the buffer fills when bytes do arrive |
-  | Grounds | connected, confirmed by inspection |
-
-  What is left is the physical receive pair. It behaves as a marginal,
-  intermittent, frequency-dependent connection:
-
-  | Host rate | Bytes reaching the camera, of 200 sent |
-  |---:|---|
-  | 921600 | 0 |
-  | 153600 to 250000 | 1 to 4 |
-  | 128000 | 113 |
-  | 115200 | 223 once, then 0 on six consecutive repeats |
-
-  The idle line reads as `FF` with occasional `FC`, `F8`, `F0`, which are noise
-  glitches being taken for start bits rather than data.
-
-  The asymmetry is explained by the 120 ohm terminator fitted across A and B at
-  the camera. Series resistance anywhere in that path, a cold joint or a screw
-  terminal gripping insulation, forms a divider with that 120 ohm load and
-  collapses the signal. The opposite direction drives into the converter's
-  high-impedance receiver, where the same poor joint passes signal happily.
-
-  Next steps, cheapest first:
-
-  1. Lift one leg of the 120 ohm resistor and retest. If reception starts, the
-     path has series resistance. This is the single most informative test.
-  2. With `tools/rs422_diagnose.py --mode pattern` running, measure across A and
-     B at the camera. Expect at least 1.5 V peak to peak differential; a few
-     hundred millivolts means series resistance.
-  3. Measure each leg end to end. Anything above about an ohm is suspect.
-     Reflow the joints and check the terminal block grips copper.
-  4. `--mode loopback` with the camera disconnected proves whether the
-     converter and its wiring are sound, independently of the camera.
-  5. Check whether the converter also terminates its own transmit pair; two
-     terminators halve the drive.
+  Also learned: **do not remove the 120 ohm across A and B.** Lifting it as a
+  test left the pair biased to a 5 V DC difference, far outside the receiver's
+  input range, and stopped even the low-speed traffic that had been getting
+  through.
 
 ## P1 - resolve before peripheral bring-up
 
