@@ -137,7 +137,27 @@ dropped if the request arrived while an image packet was going out, because the
 transmitter cannot be interrupted. Replies are now queued and sent ahead of
 image traffic as soon as the transmitter frees.
 
-### The camera cannot receive: hardware
+### Receive fixed 2026-08-21, and flow control verified
+
+The receive fault was cross-wiring: A and B went to the converter's receive
+terminals instead of its transmit pair. With that corrected the link is
+bidirectional at 921600 with no checksum errors, and everything that could not
+previously be exercised over the wire now has been:
+
+| Exercised | Result |
+|---|---|
+| LRT request | five sent, five counted |
+| HRT stop, and stop with loss | stream stops, vitals continue, stays stopped |
+| HRT go | stream resumes, 369 packets and 11 frames in six seconds |
+| take-image | corrects, sends exactly 31 packets for one frame, returns to idle |
+| start-record, stop-record | 520 packets and 16 frames, then silent |
+| run-ffc | shutter runs, video freezes for a frame, scene steps |
+| Application over RS-422 | 2.0 frames/s, vitals, correction and capture buttons |
+
+The stop-with-loss defect fixed earlier is therefore confirmed on hardware, not
+just by forcing the flag over SWD.
+
+### Historical: the camera cannot receive: hardware
 
 **The computer to camera direction does not work at all.** Read from the
 camera's own memory while running, all receive counters are zero, including
