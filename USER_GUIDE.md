@@ -183,6 +183,85 @@ converter appears as another serial port, separate from the camera's own.
 > currently has a pull-up fitted, so this node may drive the bus when it should
 > be listening. Point to point with a converter is fine.
 
+### Starting from scratch
+
+The full sequence, assuming nothing is connected yet.
+
+**1. Plug in the RS-422 converter and find its port.**
+
+```powershell
+python -c "import serial.tools.list_ports as p; [print(x.device, x.hwid) for x in p.comports()]"
+```
+
+The converter is the FTDI one, hardware ID containing `0403:6001`. Its port
+number changes when you replug it, so check each time.
+
+**2. Confirm the camera is alive and transmitting.**
+
+```powershell
+python .\tools\rs422_diagnose.py --port COM34 --mode listen --seconds 5
+```
+
+Expect roughly 79,000 bytes a second and a few hundred packet markers. Nothing
+at all means the camera is unpowered, or its transmit pair does not reach the
+converter's receive pair.
+
+**3. Put the camera into a known state.**
+
+```powershell
+python .\tools\stp_monitor.py --port COM34 --command stop-record --seconds 3
+```
+
+The image stream stops and vitals continue once a second. This matters because
+the bench firmware starts streaming on power-up, so without this you cannot
+tell a working command from a stream that was already running.
+
+**4. Check the vitals decode.**
+
+```powershell
+python .\tools\stp_monitor.py --port COM34 --seconds 5
+```
+
+```
+LRT  up=   885.7s  streaming  gen=7496  dose=-61.387 rad  ffc   0.0s  idle   scene 23.9..39.9 C
+```
+
+`streaming` is the imaging sensor, `idle` is the image link. Both are what you
+want at this point.
+
+**5. Ask for one image.**
+
+```powershell
+python .\tools\stp_monitor.py --port COM34 --command take-image --seconds 12 --save-frames captures\rs422
+```
+
+The camera corrects the image, sends exactly 31 packets, and goes back to idle.
+You should see `1 frames reassembled`.
+
+**6. Or stream continuously.**
+
+```powershell
+python .\tools\stp_monitor.py --port COM34 --command start-record --save-frames captures\rs422
+```
+
+Stop it with Ctrl-C locally, and stop the camera with:
+
+```powershell
+python .\tools\stp_monitor.py --port COM34 --command stop-record --seconds 3
+```
+
+**7. Or watch it in the window instead.**
+
+```powershell
+python .\tools\thermalcam_app.py --source rs422 --rs422-port COM34
+```
+
+Turn a saved frame into a picture:
+
+```powershell
+python .\tools\render_frame.py captures\rs422\frame-00001.raw -o shot.png --destripe
+```
+
 ### Watch the traffic
 
 ```powershell
@@ -231,11 +310,78 @@ The link carries two separate things, and they do not overlap.
 
 | Name | Purpose | Rate |
 |---|---|---|
-| LRT, low rate | **Vitals only.** Uptime, camera state, frame counter, dosimeter reading, scene temperature summary, and every error counter. No image data. | Once a second, or on request |
-| HRT, high rate | **The image, and nothing else.** One frame split across 31 packets, each carrying a header so it can be reassembled. | Continuous while enabled |
+| LRT, low rate | **Vitals only.** No image data. | Once a second, or on request |
+| HRT, high rate | **The image, and nothing else.** | Continuous while enabled |
 
 Vitals are always given the transmitter first, so image traffic cannot crowd
 them out. They cost about 1.4% of the link.
+
+#### Exactly what LRT carries
+
+1248 bytes of payload, after the 6-byte header and before the 2-byte checksum.
+All multi-byte fields are big endian, like the rest of the protocol.
+
+| Offset | Size | Field |
+|---:|---:|---|
+| 0 | 4 | Layout version, currently 1 |
+| 4 | 4 | Camera uptime, milliseconds |
+| 8 | 4 | Coarse time, echoed back from the last packet DICE sent |
+| 12 | 2 | Fine time, echoed back |
+| 14 | 1 | Imaging sensor state: 0 power-off, 2 booting, 3 configuring, 5 streaming, 6 resync, 7 retry |
+| 15 | 1 | Stored-settings status: 0 loaded, 1 defaults, 2 saving, negative failed |
+| 16 | 4 | Frame generation, counts every image the sensor has produced |
+| 20 | 2 | Result of the last sensor configuration, 0 is good |
+| 22 | 2 | Result of the last shutter-policy check, 0 is good |
+| 24 | 4 | **Dose, signed, in microrad** |
+| 28 | 4 | Dosimeter voltage, smoothed, microvolts |
+| 32 | 4 | Dosimeter zero intercept, signed, microvolts |
+| 36 | 4 | Dosimeter flags: 1 nominal calibration, 2 saturated, 4 stale, 8 zeroing |
+| 40 | 4 | Supply voltage, millivolts |
+| 44 | 2 | Raw converter mean, of 4095 |
+| 46 | 2 | Raw converter standard deviation |
+| 48 | 2 | **Scene coldest pixel, centikelvin** |
+| 50 | 2 | **Scene hottest pixel, centikelvin** |
+| 52 | 2 | **Scene centre pixel, centikelvin** |
+| 56 | 4 | Time since the last shutter correction, milliseconds |
+| 60 | 1 | Shutter mode: 0 manual, 1 auto, 2 external |
+| 61 | 1 | Capture state: 0 idle, 1 correcting, 2 sending one image, 3 recording |
+| 62 | 2 | Images sent in response to a single-image request |
+| 64 | 100 | Twenty-five 32-bit health counters, in the order below |
+| 164 | 1084 | Zero padding |
+
+The health counters at offset 64, four bytes each in this order: reset cause,
+fatal code, clock failures, camera boot failures, sensor errors, forced
+corrections, discarded sensor packets, sensor checksum errors, sensor sequence
+errors, sensor resynchronisations, transfer retries, link stalls, transfer
+failures, sensor bus errors, chunks processed, segments accepted, segments
+ignored, frames completed, frames dropped, USB receive overruns, USB transmit
+busy, converter overruns, RS-422 receive overruns, RS-422 checksum errors,
+RS-422 transmit busy.
+
+#### Exactly what HRT carries
+
+1280 bytes of payload. One frame is 38400 bytes, split across 31 packets, each
+carrying at most 1264 bytes of image.
+
+| Offset | Size | Field |
+|---:|---:|---|
+| 0 | 4 | Frame generation, the same for all 31 packets of one image |
+| 4 | 2 | Chunk index, 0 to 30 |
+| 6 | 2 | Chunk count, 31 |
+| 8 | 4 | Byte offset of this chunk within the frame |
+| 12 | 2 | Number of image bytes in this chunk |
+| 14 | 2 | Layout version, currently 1 |
+| 16 | 1264 | Image bytes |
+
+> **The image bytes are little endian**, unlike every other field in the
+> protocol. They are copied straight out of the camera's frame buffer, so each
+> pixel is a little-endian 16-bit temperature in hundredths of a kelvin. The
+> packet header around them is big endian.
+
+Each packet is self-describing, so a receiver can reassemble without holding
+state between packets, and can discard an image whose generation changed
+partway through.
+
 
 ### Image rate over RS-422
 
@@ -264,7 +410,7 @@ The graphical interface can take its pictures from RS-422 instead of USB, which
 is how you see the flight link the way the flight computer does:
 
 ```powershell
-python .	ools	hermalcam_app.py --source rs422 --rs422-port COM39
+python .\tools\thermalcam_app.py --source rs422 --rs422-port COM34
 ```
 
 Everything in the window works as usual: palettes, contrast, click-to-measure,
@@ -290,9 +436,9 @@ poor when the link is busy or slow. The commands are therefore discrete, so you
 ask for exactly what you want rather than turning a general stream on and off:
 
 ```powershell
-python .	ools\stp_monitor.py --port COM39 --command take-image
-python .	ools\stp_monitor.py --port COM39 --command start-record
-python .	ools\stp_monitor.py --port COM39 --command stop-record
+python .\tools\stp_monitor.py --port COM34 --command take-image
+python .\tools\stp_monitor.py --port COM34 --command start-record
+python .\tools\stp_monitor.py --port COM34 --command stop-record
 ```
 
 | Command | Corrects first | What it does |
@@ -312,34 +458,40 @@ so you can see a request being taken up.
 
 The complete packet bytes for each are in [COMMANDS.md](COMMANDS.md).
 
-> These commands cannot reach the camera at present; see the fault below.
+### If the camera will not receive
 
-### Known fault: the camera does not receive
+Fixed 2026-08-21. The symptom was that the camera transmitted perfectly --
+thousands of packets at 921600 with no checksum failures -- while nothing sent
+to it ever arrived. Its received-packet counters stayed at zero, including the
+corrupt-packet counters, which is the signature of a wiring fault rather than a
+baud rate or firmware problem: a wrong baud rate still counts corrupt bytes.
 
-Measured 2026-08-20. The camera to computer direction is perfect: thousands of
-packets at 921600 with no checksum failures. **The computer to camera direction
-does not work at all.** Commands sent to the camera never arrive, so requesting
-vitals, starting and stopping the image stream, and sending commands all appear
-to be ignored.
+The cause was cross-wiring. The camera's receive pair (A and B) had been landed
+on the converter's *receive* terminals, so both ends were listening and neither
+was talking to the other. Correct is receive-to-transmit in both directions:
 
-The evidence, taken by reading the camera's own registers while it ran:
-
-| Test | Result |
+| Camera (ADM2582E) | Converter |
 |---|---|
-| Camera's received-packet counters after many requests | all zero, including the corrupt-packet counters |
-| 14 bytes sent at 921600 with the camera halted | 1 byte reached the receiver |
-| 50 bytes at 460800 or above | none reached the receiver |
-| 50 bytes at 115200, both ends matched | none decoded |
-| Same again with the transmit-enable line forced inactive | still nothing |
+| A, B (receiver inputs) | TX+, TX- |
+| Y, Z (driver outputs) | RX+, RX- |
 
-Because not even a corrupt byte is counted, this is a wiring or transceiver
-configuration fault on the camera's receive pair, not a baud rate or firmware
-problem. Worth checking: that the converter's transmit pair reaches the
-camera's receive pair, that the pair is not open or swapped, that the
-transceiver's receiver-enable pin is active, and that the pair is terminated.
+If commands are ignored again, check in this order:
 
-Until that is fixed the camera still streams vitals and images continuously, so
-the window and the monitor work; only commands do not.
+1. **The pairs are not swapped**, per the table above. This is the fault that
+   actually occurred.
+2. **The 120 ohm termination across A and B is populated.** Removing it makes
+   things worse, not better; a floating pair sits at several volts.
+3. **The receiver-enable pin is active.** On this board RE is tied to ground,
+   so it is always enabled.
+4. **The grounds are joined.** The link is not isolated here.
+5. **Nothing else holds the port open.** A stale monitor or window process
+   keeps the converter's port and silently swallows the traffic.
+
+Confirm with the diagnostic, which reports bytes and packet markers per second:
+
+```powershell
+python .\tools\rs422_diagnose.py --port COM34 --mode listen --seconds 5
+```
 
 ---
 
@@ -442,7 +594,7 @@ about 13 per second, repeating some, which is normal.
 | Image drifted or smeared | Run a flat-field correction. |
 | Dose reads about -61 rad | Expected on current hardware; see above. |
 | Nothing decodes on RS-422 | Check the wiring and baud rate, then the [link settings](#link-settings). |
-| Camera ignores RS-422 commands | Known fault; see [the camera does not receive](#known-fault-the-camera-does-not-receive). |
+| Camera ignores RS-422 commands | Check the wiring; see [if the camera will not receive](#if-the-camera-will-not-receive). |
 
 ---
 
