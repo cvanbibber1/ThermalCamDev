@@ -454,7 +454,14 @@ void lepton_capture_hold_frame(bool hold) {
 }
 
 int lepton_capture_run_ffc(void) {
-  return lepton_cci_run(LEPTON_CID_SYS_RUN_FFC);
+  int result = lepton_cci_run(LEPTON_CID_SYS_RUN_FFC);
+  if (result == LEPTON_CCI_OK) {
+    /* The cached age is only refreshed by the supervisor poll, so without this
+     * a correction requested on demand still reports the old age for up to
+     * APP_LEPTON_FFC_CHECK_MS and looks as though it was ignored. */
+    capture_status.ffc_elapsed_ms = 0U;
+  }
+  return result;
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t pin) {
