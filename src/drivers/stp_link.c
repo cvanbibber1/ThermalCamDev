@@ -226,7 +226,11 @@ static void encode_step(void) {
   size_t length = 0U;
   frame_codec_step_t step = FRAME_CODEC_BUSY;
 
-  while ((DWT->CYCCNT - started) < budget) {
+  /* Yield the moment capture needs the core. Compression can always be
+   * finished on the next pass; a missed chunk cannot be, and losing sync costs
+   * far more frames than finishing this slice would have saved. */
+  while (((DWT->CYCCNT - started) < budget) &&
+         !lepton_capture_chunk_pending()) {
     step = frame_codec_encode_step(&codec_encoder, APP_CODEC_ROWS_PER_STEP,
                                    &length);
     if (step != FRAME_CODEC_BUSY) {

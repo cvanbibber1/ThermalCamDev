@@ -49,6 +49,14 @@ void lepton_capture_hold_frame(bool hold);
  * one has no timeout, because the encoder always finishes. */
 void lepton_capture_hold_for_codec(bool hold);
 
+/* True when a VoSPI chunk is waiting to be parsed.
+ *
+ * Capture is the one hard deadline in this firmware: a chunk must be taken
+ * within 12.6 ms or the sensor loses sync. Anything long-running in the task
+ * loop is expected to poll this and give the core back as soon as it is
+ * true. */
+bool lepton_capture_chunk_pending(void);
+
 /* Scene bounds of the published frame, refreshed whenever one is published.
  * The USB video callback maps 16-bit counts to 8-bit luma from these, so they
  * are derived here in the task loop rather than in interrupt context. */
