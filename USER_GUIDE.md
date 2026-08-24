@@ -4,6 +4,37 @@ A practical guide to running the Lepton 3.1R radiometric thermal camera, over
 USB on the bench and over RS-422 for flight. No prior knowledge of the design
 is assumed.
 
+## Run it now
+
+Over USB, on the bench:
+
+```powershell
+python .\tools\thermalcam_app.py
+```
+
+Over RS-422, the flight link:
+
+```powershell
+python .\tools\thermalcam_app.py --source rs422 --rs422-port COM34
+```
+
+Replace `COM34` with your converter's port; it changes when you replug it. To
+find it, look for the FTDI device:
+
+```powershell
+python -c "import serial.tools.list_ports as p; [print(x.device, x.hwid) for x in p.comports()]"
+```
+
+Either command opens the same window. Over RS-422 it asks the camera to start
+streaming by itself, so it works whatever state the camera was left in. If
+nothing appears, see [when something looks wrong](#when-something-looks-wrong).
+
+Everything the window does is also available from the command line; see
+[start the command line interface](#start-the-command-line-interface).
+
+---
+
+- [Run it now](#run-it-now)
 - [What the camera is](#what-the-camera-is)
 - [One-time setup](#one-time-setup)
 - [Start the graphical interface](#start-the-graphical-interface)
@@ -16,7 +47,8 @@ is assumed.
 - [Response reference](#response-reference)
 
 Machine-readable command and packet hex strings for integrating into other
-software are in [COMMANDS.md](COMMANDS.md).
+software are in [COMMANDS.md](COMMANDS.md). How the firmware and the protocol
+actually work is in the [developer README](README.md).
 
 ---
 
@@ -306,156 +338,48 @@ If nothing decodes, check the wiring and the baud rate first. The
 proved from the ground without rebuilding firmware; they should not be needed.
 These settings live in `include/protocol/stp_protocol.h` if they ever change.
 
-### The two streams
+### What the link carries
 
-The link carries two separate things, and they do not overlap.
+Two streams share the RS-422 bus.
 
-| Name | Purpose | Rate |
-|---|---|---|
-| LRT, low rate | **Vitals only.** No image data. | Once a second, or on request |
-| HRT, high rate | **The image, and nothing else.** | Continuous while enabled |
+**Vitals** arrive once a second: uptime, what the camera is doing, the
+dosimeter reading, how long since the last shutter correction, the scene's
+coldest, hottest and centre temperatures, and a block of health counters.
+`stp_monitor.py` prints one line per second from these.
 
-Vitals are always given the transmitter first, so image traffic cannot crowd
-them out. They cost about 1.4% of the link.
+**Images** arrive only when the camera is streaming or has been asked for a
+picture. They are compressed, and are decoded for you by the window and by
+`stp_monitor.py`.
 
-#### Exactly what LRT carries
+The exact byte layout of both, and how the compression works, are in the
+[developer README](README.md#the-rs-422-wire-format) -- you only need them if
+you are writing your own decoder or integrating with the flight computer.
 
-1248 bytes of payload, after the 6-byte header and before the 2-byte checksum.
-All multi-byte fields are big endian, like the rest of the protocol.
+### Compression and frame rate
 
-| Offset | Size | Field |
-|---:|---:|---|
-| 0 | 4 | Layout version, currently 1 |
-| 4 | 4 | Camera uptime, milliseconds |
-| 8 | 4 | Coarse time, echoed back from the last packet DICE sent |
-| 12 | 2 | Fine time, echoed back |
-| 14 | 1 | Imaging sensor state: 0 power-off, 2 booting, 3 configuring, 5 streaming, 6 resync, 7 retry |
-| 15 | 1 | Stored-settings status: 0 loaded, 1 defaults, 2 saving, negative failed |
-| 16 | 4 | Frame generation, counts every image the sensor has produced |
-| 20 | 2 | Result of the last sensor configuration, 0 is good |
-| 22 | 2 | Result of the last shutter-policy check, 0 is good |
-| 24 | 4 | **Dose, signed, in microrad** |
-| 28 | 4 | Dosimeter voltage, smoothed, microvolts |
-| 32 | 4 | Dosimeter zero intercept, signed, microvolts |
-| 36 | 4 | Dosimeter flags: 1 nominal calibration, 2 saturated, 4 stale, 8 zeroing |
-| 40 | 4 | Supply voltage, millivolts |
-| 44 | 2 | Raw converter mean, of 4095 |
-| 46 | 2 | Raw converter standard deviation |
-| 48 | 2 | **Scene coldest pixel, centikelvin** |
-| 50 | 2 | **Scene hottest pixel, centikelvin** |
-| 52 | 2 | **Scene centre pixel, centikelvin** |
-| 54 | 2 | Encoded size of the image being sent, bytes. Divide 38400 by this for the compression achieved |
-| 56 | 4 | Time since the last shutter correction, milliseconds |
-| 60 | 1 | Shutter mode: 0 manual, 1 auto, 2 external |
-| 61 | 1 | Capture state: 0 idle, 1 correcting, 2 sending one image, 3 recording |
-| 62 | 2 | Images sent in response to a single-image request |
-| 64 | 112 | Twenty-eight 32-bit health counters, in the order below |
-| 176 | 1072 | Zero padding |
+Images are compressed **losslessly**. Every pixel you get is exactly the value
+the sensor produced: nothing is approximated and the radiometry is untouched.
+Each frame carries a checksum of the original pixels, so the tools verify this
+on every frame rather than assuming it, and tell you if one fails.
 
-The twenty-eight health counters at offset 64, four bytes each in this order: reset cause,
-fatal code, clock failures, camera boot failures, sensor errors, forced
-corrections, discarded sensor packets, sensor checksum errors, sensor sequence
-errors, sensor resynchronisations, transfer retries, link stalls, transfer
-failures, sensor bus errors, chunks processed, segments accepted, segments
-ignored, frames completed, frames dropped, USB receive overruns, USB transmit
-busy, converter overruns, RS-422 receive overruns, RS-422 checksum errors,
-RS-422 transmit busy, frames sent uncompressed, keyframes sent, longest
-compression pass in microseconds, image chunks the transmitter asked for before
-the encoder had produced them.
+Compression is what makes the flight link usable. A raw frame is 38,400 bytes
+and the link carries 92,160 bytes a second, so uncompressed video managed 1.85
+frames a second. Real scenes compress about 3.5x, and the measured rate is now:
 
-#### Exactly what HRT carries
+| Link | Frames per second |
+|---|---|
+| USB video | 8.8, the sensor's full rate |
+| RS-422, compressed | about 5.8 |
+| RS-422, uncompressed (before this) | 1.85 |
 
-1280 bytes of payload, of which at most 1264 are image. Images are compressed,
-so a frame is typically 9 packets rather than the 31 an uncompressed one takes.
+**The sensor's full 8.7 frames a second is not reachable over RS-422.** It
+would need about 4.3x compression and real scenes give 3.5x; there is no faster
+baud available on this bus. If you need genuinely live video, use USB.
 
-| Offset | Size | Field |
-|---:|---:|---|
-| 0 | 4 | Frame generation, the same for every packet of one image |
-| 4 | 2 | Chunk index, counting from 0 |
-| 6 | 2 | Chunk count, or 0 when it is not yet known (see below) |
-| 8 | 4 | Byte offset of this chunk within the encoded frame |
-| 12 | 2 | Number of bytes in this chunk |
-| 14 | 1 | Layout version, currently 2 |
-| 15 | 1 | Codec mode, plus the end-of-frame flag |
-| 16 | 1264 | Encoded image bytes |
-
-The mode byte is one of:
-
-| Value | Meaning |
-|---:|---|
-| 0 | Raw pixels, uncompressed. The fallback; not normally seen |
-| 1 | Keyframe, coded against itself |
-| 2 | Difference against the previous frame |
-| +0x80 | Set on the last chunk of a frame |
-
-**The chunk count is often zero.** The camera begins transmitting a frame
-before it has finished compressing it, so it does not yet know how many chunks
-the frame will take. Reassemble by collecting chunks until one arrives with the
-0x80 flag set; that chunk's index plus one is the count. When the count is
-non-zero it can be trusted.
-
-Version 1 put a 16-bit layout version at offset 14, so its byte 14 was always
-zero and byte 15 was 1. That is how a decoder tells the two apart, and why
-captures taken before compression still decode.
-
-Each packet is self-describing apart from the length, so a receiver can
-reassemble without holding state between packets, and can discard an image
-whose generation changed partway through.
-
-> **Raw image bytes are little endian**, unlike every other field in the
-> protocol. That applies to mode 0 and to the output of the decoder: each pixel
-> is a little-endian 16-bit temperature in hundredths of a kelvin. The packet
-> header around it is big endian.
-
-#### How the compression works
-
-It is lossless. Every pixel that comes out of the decoder is exactly the value
-the sensor produced; nothing is approximated, and the radiometry is untouched.
-
-Each frame is predicted with the median-edge predictor from JPEG-LS, either
-against itself or against the previous frame, and the differences are Rice
-coded in blocks of 32 pixels. Measured over 50 frames of real footage this is
-3.8x, against 1.75x for zlib and 2.16x for lzma: a predictor built for the data
-beats a general-purpose compressor, which does not know it is looking at a
-two-dimensional field of correlated 16-bit samples.
-
-The last four bytes of each encoded frame are a checksum of the original
-pixels. The decoder recomputes it, so a frame is proven identical to what the
-sensor produced rather than assumed to be. `stp_monitor.py` reports any that
-fail.
-
-A difference frame is only decodable if the frame before it arrived. The camera
-therefore sends a keyframe every 12 frames, so a lost packet costs at most two
-seconds of picture. `tools/frame_codec.py` handles all of this; you only need
-to care if you are writing your own decoder.
-
-
-### Image rate over RS-422
-
-Measured on the bench over 60 seconds: **5.78 frames a second**, at 3.57x
-compression, with no checksum failures and no partial frames. The camera itself
-produces 8.8 frames a second, so RS-422 now carries about two frames in three.
-
-```
-921600 baud, 8N1     = 92,160 bytes/s
-one image packet     =  1,288 bytes = 14.0 ms
-one frame compressed =      9 packets = 11,592 bytes
-one frame raw        =     31 packets = 39,928 bytes
-```
-
-Uncompressed, the same link carried 1.85 frames a second. Compression is what
-made the difference; there is no faster baud available on this bus.
-
-**8.7 frames a second is not reachable at this baud.** It would need 8 packets
-per frame, which is about 4.3x compression, and real scenes give 3.5x. The
-arithmetic is unforgiving: 8.7 frames of 9 packets is 100,850 bytes a second
-against 92,160 available.
-
-The remaining gap between 5.8 and the 7.8 the link would allow is processor
-time, not bandwidth. Compressing a frame costs about 16 ms on a 100 MHz Cortex-M4
-that is already spending most of its time assembling sensor packets, and that
-holds the capture rate below the sensor's 8.8. For a genuinely live picture use
-the USB video interface, which runs at the full 8.8 frames a second.
+You may see the rate dip briefly. A single image is always sent in full rather
+than as a difference from the previous one, so `take-image` costs more than a
+streamed frame, and the camera sends a full frame every twelve frames anyway so
+that a lost packet cannot spoil the picture for more than about two seconds.
 
 ### Watch RS-422 images in the window
 
@@ -467,13 +391,14 @@ python .\tools\thermalcam_app.py --source rs422 --rs422-port COM34
 ```
 
 Everything in the window works as usual: palettes, contrast, click-to-measure,
-saving images and recording. Two differences:
+saving images and recording. Three differences:
 
 - The picture updates at about six frames a second rather than 8.8.
-- The dosimeter panel is fed from the vitals stream rather than polled, and the
-  buttons that send commands are greyed out unless a USB serial link is also
-  connected, because commands travel in the direction RS-422 currently cannot
-  carry. See below.
+- The window asks the camera to start streaming when it connects, so it does
+  not matter what state the camera was left in.
+- The dosimeter panel is fed from the vitals stream rather than polled. The
+  correction and dosimeter-zero buttons work over RS-422; images and recordings
+  are saved from the stream on the computer, not on the camera.
 
 | Option | Meaning |
 |---|---|
@@ -485,7 +410,8 @@ saving images and recording. Two differences:
 ### Asking the camera for images
 
 Streaming runs at about six frames a second, which is fine for watching but
-still short of the sensor's 8.8, and worse if the link is busy or slow. The commands are therefore discrete, so you
+still short of the sensor's 8.8, and worse if the link is busy or slow. The
+commands are therefore discrete, so you
 ask for exactly what you want rather than turning a general stream on and off:
 
 ```powershell
