@@ -395,6 +395,14 @@ class Rs422Grabber(QtCore.QThread):
         while self._running:
             try:
                 link = serial.Serial(self._port, self._baud, timeout=0.2)
+                # Decompressing a frame takes tens of milliseconds, and nothing
+                # is read from the port meanwhile. The driver's default buffer
+                # is too small to cover that gap, and the bytes lost to it show
+                # up as incomplete frames -- which halved the displayed rate.
+                try:
+                    link.set_buffer_size(rx_size=1 << 20, tx_size=1 << 16)
+                except (AttributeError, NotImplementedError):
+                    pass  # Not a Windows driver; its default is usually ample.
             except Exception as exc:  # noqa: BLE001 - shown in the status bar
                 self.status.emit(f"cannot open {self._port}: {exc}")
                 self._wait(2.0)
@@ -402,6 +410,11 @@ class Rs422Grabber(QtCore.QThread):
 
             self.status.emit("connected")
             self.reconnected.emit()
+            # Ask the camera to stream. It does not do so on its own after a
+            # stop, so without this the window opens on a black frame and stays
+            # there, with nothing on screen to explain why. Sent on every
+            # reconnect too, since a camera that reset came back idle.
+            self.send_command("stream-on")
             assembler = stp.FrameAssembler()
             buffer = bytearray()
             try:
