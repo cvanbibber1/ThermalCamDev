@@ -216,10 +216,11 @@ the same telemetry over both USB and RS-422 so you can compare them.
 The camera's transceiver connects to your RS-422 to USB converter. The
 converter appears as another serial port, separate from the camera's own.
 
-> **Before connecting to a bus with other equipment on it**, read the caution
-> in `Knowledge Base/Project/Flight Test RS422.md`. The transmit-enable line
-> currently has a pull-up fitted, so this node may drive the bus when it should
-> be listening. Point to point with a converter is fine.
+> **Before connecting to a bus with other equipment on it:** the camera is
+> currently built to hold its transmit-enable line on, because only one camera
+> is on the pair. It will drive the bus when it should be listening. Point to
+> point with a converter is fine; a shared bus needs
+> `APP_RS485_DE_MANAGED` set to 1 first.
 
 ### Starting from scratch
 

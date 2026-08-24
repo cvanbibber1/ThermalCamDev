@@ -7,3 +7,15 @@ __pycache__/
 *.py[cod]
 tmp/
 captures/
+
+# Authoring and assistant tooling. These are working aids, not part of the
+# flight software, and they are kept out of the repository so what ships is
+# only what runs on the camera or talks to it.
+Knowledge Base/
+graphify-out/
+.codex/
+.claude/
+.cursor/
+AGENTS.md
+CLAUDE.md
+.graphifyignore
