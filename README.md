@@ -404,8 +404,16 @@ way in is RS-422.
 `STP_BENCH_FREERUN` is 0 for flight. The camera sends nothing at power-up,
 answers vitals only when asked, and streams images only when told. On a bus
 shared with up to five experiments and the flight computer, anything else would
-talk over somebody. The transceiver's driver enable is asserted only for the
-duration of each packet and released in the transmit-complete callback.
+talk over somebody.
+
+The transceiver's driver enable is handled by `APP_RS485_DE_MANAGED`. With it
+set the driver is raised only for each transmission and dropped again, which is
+what a shared pair needs; the code for that is always present and every caller
+asks for it. It is currently **0**, because only one camera is on the bus for
+these tests: the driver stays enabled, matching the pull-up fitted on the
+board, and there is no turnaround to get wrong. RS-422 is full duplex on
+separate pairs, so holding it on does not stop the camera being spoken to.
+**Set it to 1 before flying on a shared bus.**
 
 Set it to 1 for bench work and the camera free-runs instead. **It must be 0 to
 fly**, and it is checked by listening: a correctly configured camera returns
@@ -454,10 +462,14 @@ power cycle, reboot, streaming.
 
 What is **not** implemented is triple modular redundancy, RAM scrubbing or ECC,
 which the requirements list as optional. Corruption is detected at every
-interface and recovered by retry or reset; it is not masked. One known gap:
-`fatal_code` lives in `.bss` and does not survive the reset, so the ground sees
-that the watchdog fired but not what caused it. Moving it to an RTC backup
-register would close that.
+interface and recovered by retry or reset; it is not masked.
+
+The reason for a reset outlives it. `board_fatal()` writes the code to an RTC
+backup register, which is cleared only by loss of power rather than by a system
+or watchdog reset, and it comes back in telemetry as `previous_fatal_code`.
+Verified by faulting deliberately: the camera returned reporting an IWDG reset
+and `previous_fatal_code = 0xBEEF`. Combined with `reset_cause` the ground
+learns both that the watchdog fired and what led to it.
 
 ---
 

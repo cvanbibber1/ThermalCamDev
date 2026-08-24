@@ -17,6 +17,7 @@ DMA_HandleTypeDef hdma_usart2_tx;
 static uint32_t saved_reset_cause;
 
 static bool system_clock_config(void);
+static void fault_memory_init(void);
 static bool gpio_init(void);
 static bool dma_init(void);
 static bool i2c_init(void);
@@ -27,6 +28,7 @@ static bool uart_init(void);
 bool board_init(void) {
   saved_reset_cause = RCC->CSR;
   __HAL_RCC_CLEAR_RESET_FLAGS();
+  fault_memory_init();
 
   if (!gpio_init()) {
     g_health.fatal_code = 0xB101U;
@@ -333,7 +335,51 @@ void board_lepton_spi_clock_enable(void) {
 }
 
 void board_rs485_de(bool enabled) {
+#if APP_RS485_DE_MANAGED
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, enabled ? GPIO_PIN_SET : GPIO_PIN_RESET);
+#else
+  /* Single node on the pair: hold the driver on and ignore the request. Every
+   * caller still asks, so turning APP_RS485_DE_MANAGED back on restores proper
+   * multidrop turnaround without touching anything else. */
+  (void)enabled;
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
+#endif
+}
+
+/* -------------------------------------------------- fault persistence ---- */
+
+/* One backup register survives a reset, so the reason for the reset can
+ * outlive it. Without this the ground sees that the watchdog fired but never
+ * what led to it, which is the one question worth answering after a fault in
+ * orbit. The backup domain is cleared only by loss of power, not by a system
+ * or watchdog reset. */
+#define FATAL_BACKUP_REGISTER (RTC->BKP0R)
+
+static uint32_t previous_fatal;
+
+static void fault_memory_init(void) {
+  __HAL_RCC_PWR_CLK_ENABLE();
+  HAL_PWR_EnableBkUpAccess();
+  /* The backup registers live behind the RTC, so its clock has to run. LSI is
+   * already awake for the watchdog, and the RTC itself is not otherwise used;
+   * RTCSEL only takes a value once per backup-domain reset, so a repeat write
+   * after a warm reset is correctly ignored. */
+  if (__HAL_RCC_GET_RTC_SOURCE() == RCC_RTCCLKSOURCE_NO_CLK) {
+    __HAL_RCC_RTC_CONFIG(RCC_RTCCLKSOURCE_LSI);
+  }
+  __HAL_RCC_RTC_ENABLE();
+
+  previous_fatal = FATAL_BACKUP_REGISTER;
+  /* Consumed: the next reset should report its own cause, not this one. */
+  FATAL_BACKUP_REGISTER = 0U;
+}
+
+uint32_t board_previous_fatal(void) {
+  return previous_fatal;
+}
+
+void board_persist_fatal(uint32_t code) {
+  FATAL_BACKUP_REGISTER = code;
 }
 
 static IWDG_HandleTypeDef hiwdg;
@@ -362,6 +408,8 @@ void board_watchdog_refresh(void) {
 
 void board_fatal(uint32_t code) {
   g_health.fatal_code = code;
+  /* Recorded where it will survive the reset that is about to happen. */
+  board_persist_fatal(code);
   /* Let go of the bus and the sensor before stopping, so a dead experiment
    * cannot hold the shared RS-422 line down or leave the Lepton selected. */
   board_rs485_de(false);

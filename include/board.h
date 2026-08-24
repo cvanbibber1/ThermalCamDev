@@ -42,3 +42,9 @@ void board_watchdog_refresh(void);
 
 /* Record an unrecoverable fault and wait for the watchdog to reset the part. */
 void board_fatal(uint32_t code);
+
+/* The fault code recorded before the last reset, or 0 if the part came up
+ * cleanly. Read once at startup and reported in telemetry, so a watchdog reset
+ * in orbit can be explained rather than merely noticed. */
+uint32_t board_previous_fatal(void);
+void board_persist_fatal(uint32_t code);
