@@ -42,6 +42,9 @@ typedef struct {
   /* Times the sensor stopped producing frames while the transport still looked
    * healthy, and had to be reacquired or power cycled. */
   uint32_t camera_stalls;
+  /* The fault code that caused the previous reset, carried across it in a
+   * backup register. Zero if the last start was clean. */
+  uint32_t previous_fatal_code;
 } health_counters_t;
 
 extern health_counters_t g_health;

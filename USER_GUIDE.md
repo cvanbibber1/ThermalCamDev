@@ -412,9 +412,14 @@ saving images and recording. Three differences:
 - The picture updates at about six frames a second rather than 8.8.
 - The window asks the camera to start streaming when it connects, so it does
   not matter what state the camera was left in.
-- The dosimeter panel is fed from the vitals stream rather than polled. The
-  correction and dosimeter-zero buttons work over RS-422; images and recordings
-  are saved from the stream on the computer, not on the camera.
+- The dosimeter panel is fed from vitals, which the window asks for once a
+  second. The correction and dosimeter-zero buttons work over RS-422; images
+  and recordings are saved from the stream on the computer, not on the camera.
+- An **Image stream (HRT)** group appears, with buttons for the three
+  flow-control requests the flight computer would send: start the stream
+  (`0x87`), stop it (`0x85`), and stop it with loss (`0x86`, which tells the
+  camera the gap is expected). These only exist on RS-422, because flow
+  control belongs to whoever is playing the flight computer.
 
 | Option | Meaning |
 |---|---|

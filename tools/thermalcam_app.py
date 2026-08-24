@@ -353,6 +353,29 @@ class Rs422Grabber(QtCore.QThread):
         self._outbox: list[bytes] = []
         self._outbox_lock = QtCore.QMutex()
 
+    #: How often to ask the camera for vitals, matching the rate the flight
+    #: computer is expected to poll at.
+    VITALS_PERIOD_S = 1.0
+
+    #: DICE high-rate flow control. These are requests, not experiment
+    #: commands: a different packet class, 14 bytes rather than 120, and they
+    #: gate the image stream itself rather than telling the camera what to do.
+    HRT_REQUESTS = {"hrt-go": 0x87, "hrt-stop": 0x85, "hrt-stop-loss": 0x86}
+
+    def send_request(self, name: str) -> str:
+        """Queue a DICE flow-control request for the reader thread."""
+        stp = self._stp
+        if name not in self.HRT_REQUESTS:
+            return f"unknown request {name}"
+        codec = stp.Codec(True, 0xFFFF)
+        packet = stp.build_request(codec, self.HRT_REQUESTS[name], self._target)
+        self._outbox_lock.lock()
+        try:
+            self._outbox.append(packet)
+        finally:
+            self._outbox_lock.unlock()
+        return f"sent {name} over RS-422"
+
     def send_command(self, name: str) -> str:
         """Queue an experiment command for the reader thread to transmit."""
         stp = self._stp
@@ -415,10 +438,22 @@ class Rs422Grabber(QtCore.QThread):
             # there, with nothing on screen to explain why. Sent on every
             # reconnect too, since a camera that reset came back idle.
             self.send_command("stream-on")
+            # Vitals are answers, not announcements: flight firmware sends them
+            # only when asked. Without this the dosimeter and status panels sit
+            # empty with nothing on screen to say why.
+            lrt_request = stp.build_request(codec, 0x81, self._target)
+            last_poll = 0.0
             assembler = stp.FrameAssembler()
             buffer = bytearray()
             try:
                 while self._running:
+                    if (time.time() - last_poll) >= self.VITALS_PERIOD_S:
+                        last_poll = time.time()
+                        try:
+                            link.write(lrt_request)
+                            link.flush()
+                        except Exception:  # noqa: BLE001 - the read reports it
+                            pass
                     self._drain_outbox(link)
                     chunk = link.read(4096)
                     if chunk:
@@ -560,12 +595,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dose = None
         self._dose_log: list[dict] = []
 
+        # Which link this window is using decides part of what the panel
+        # contains, so it has to be known before the panel is built.
+        self._source = args.source
+
         self._build_ui()
 
         self.control = CameraControl()
         self.control.connect(args.port)
 
-        self._source = args.source
         self._grabber_index = args.index
         self._rs422_port = args.rs422_port
         self._rs422_baud = args.rs422_baud
@@ -717,6 +755,27 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ffc_button.clicked.connect(self.on_ffc)
         camera.addWidget(self.ffc_button)
         box.addWidget(camera_group)
+
+        # Flow control belongs to the flight computer, so these only exist when
+        # this window is standing in for it.
+        if self._source == "rs422":
+            hrt_group = QtWidgets.QGroupBox("Image stream (HRT)")
+            hrt = QtWidgets.QVBoxLayout(hrt_group)
+            start = QtWidgets.QPushButton("Start stream (HRT GO, 0x87)")
+            start.setToolTip("Type 0x87. Tells the camera it may send images.")
+            start.clicked.connect(lambda: self.on_hrt("hrt-go"))
+            hrt.addWidget(start)
+            stop = QtWidgets.QPushButton("Stop stream (HRT STOP, 0x85)")
+            stop.setToolTip("Type 0x85. Stops the image stream cleanly.")
+            stop.clicked.connect(lambda: self.on_hrt("hrt-stop"))
+            hrt.addWidget(stop)
+            stop_loss = QtWidgets.QPushButton("Stop with loss (0x86)")
+            stop_loss.setToolTip(
+                "Type 0x86. Stops the stream and tells the camera the gap is "
+                "expected, so the frames in flight are not treated as lost.")
+            stop_loss.clicked.connect(lambda: self.on_hrt("hrt-stop-loss"))
+            hrt.addWidget(stop_loss)
+            box.addWidget(hrt_group)
 
         console_group = QtWidgets.QGroupBox("Command console")
         console_layout = QtWidgets.QVBoxLayout(console_group)
@@ -946,6 +1005,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_ffc(self) -> None:
         self.statusBar().showMessage(self.request_ffc(), 4000)
+
+    def on_hrt(self, name: str) -> None:
+        """Send one of the DICE flow-control requests."""
+        self.statusBar().showMessage(self.grabber.send_request(name), 4000)
 
     def on_open_folder(self) -> None:
         QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(self.output_dir)))

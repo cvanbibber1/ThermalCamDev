@@ -49,6 +49,20 @@
 #define APP_RS485_BAUD 921600U
 /* Doubles as the STP Target ID on this branch; see STP_DEFAULT_TARGET_ID. */
 #define APP_NODE_ADDRESS_DEFAULT 0xC7U
+
+/* Drive the transceiver's driver-enable per packet, as a multidrop bus needs.
+ *
+ * Set to 1 when more than one node shares the pair: the driver is then raised
+ * only for the duration of each transmission and dropped again, so the others
+ * can speak. That is the behaviour the protocol requires and the code for it
+ * is always present.
+ *
+ * Set to 0 while this is the only camera on the bus, which is the case for the
+ * current tests. The driver stays enabled, matching the pull-up already fitted
+ * on the board, and there is no turnaround to get wrong. RS-422 is full duplex
+ * on separate pairs, so holding the driver on does not stop the camera being
+ * spoken to. MUST be 1 before flying on a shared bus. */
+#define APP_RS485_DE_MANAGED 0
 /* Dosimeter transfer function, in volts at PA4 after the external gain stage:
  *
  *     DOSI = 0.1575 + 0.0025 * D_rad

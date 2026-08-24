@@ -13,6 +13,7 @@ int main(void) {
     board_fatal(g_health.fatal_code == 0U ? 0xB001U : g_health.fatal_code);
   }
   g_health.reset_cause = board_reset_cause();
+  g_health.previous_fatal_code = board_previous_fatal();
   /* Started as early as the clocks allow, so a fault during the rest of
    * bring-up is recoverable rather than permanent. */
   board_watchdog_init();
