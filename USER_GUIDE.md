@@ -244,9 +244,9 @@ converter's receive pair.
 python .\tools\stp_monitor.py --port COM34 --command stop-record --seconds 3
 ```
 
-The image stream stops and vitals continue once a second. This matters because
-the bench firmware starts streaming on power-up, so without this you cannot
-tell a working command from a stream that was already running.
+The image stream stops and vitals keep coming once a second. This matters
+because it puts the camera in a known state: you can then tell a working
+command from a stream that was already running.
 
 **4. Check the vitals decode.**
 
@@ -302,7 +302,11 @@ python .\tools\render_frame.py captures\rs422\frame-00001.raw -o shot.png --dest
 python .\tools\stp_monitor.py --port COM7
 ```
 
-Use your converter's port, not the camera's. Vitals arrive once a second:
+Use your converter's port, not the camera's.
+
+The camera only transmits when asked -- see [the camera speaks only when
+spoken to](#the-camera-speaks-only-when-spoken-to) -- so the monitor asks for
+vitals once a second on your behalf. That gives a line a second:
 
 ```
 LRT  up=  123.4s  streaming  gen=1084    dose=-61.397 rad  scene 18.2..27.6 C
@@ -338,14 +342,26 @@ If nothing decodes, check the wiring and the baud rate first. The
 proved from the ground without rebuilding firmware; they should not be needed.
 These settings live in `include/protocol/stp_protocol.h` if they ever change.
 
+### The camera speaks only when spoken to
+
+Nothing leaves the camera unless the flight computer asks for it. It does not
+announce itself at power-up, and it does not stream images until told to. On a
+bus shared with other experiments, anything else would talk over them.
+
+This is why a passive listener sees silence. `stp_monitor.py` and the window
+both stand in for the flight computer: the monitor asks for vitals once a
+second, and the window asks the camera to start streaming when it connects.
+Pass `--poll 0` to the monitor if you want to watch without it asking for
+anything.
+
 ### What the link carries
 
 Two streams share the RS-422 bus.
 
-**Vitals** arrive once a second: uptime, what the camera is doing, the
-dosimeter reading, how long since the last shutter correction, the scene's
-coldest, hottest and centre temperatures, and a block of health counters.
-`stp_monitor.py` prints one line per second from these.
+**Vitals** come back once per request, normally once a second: uptime, what the
+camera is doing, the dosimeter reading, how long since the last shutter
+correction, the scene's coldest, hottest and centre temperatures, and a block
+of health counters.
 
 **Images** arrive only when the camera is streaming or has been asked for a
 picture. They are compressed, and are decoded for you by the window and by
