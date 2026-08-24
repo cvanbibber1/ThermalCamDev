@@ -1,8 +1,0 @@
-.codex/
-.pio/
-.venv/
-graphify-out/
-Knowledge Base/.obsidian/
-Knowledge Base/Graphify/
-tools/__pycache__/
-AGENTS.md
