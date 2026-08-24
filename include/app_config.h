@@ -126,4 +126,13 @@
  * encode to about 120 ms of wall clock and cost half the frame rate -- so
  * slices repeat within a call until the budget is spent. */
 #define APP_CODEC_ROWS_PER_STEP 12U
-#define APP_CODEC_STEP_BUDGET_US 8000U
+
+/* Backstop only. The encoder normally stops as soon as a VoSPI chunk is
+ * waiting, because capture is the hard deadline and compression is not; this
+ * bounds a slice when no chunk happens to arrive during one.
+ *
+ * It was 8000, which left only 4.6 ms of the 12.6 ms chunk deadline for
+ * everything else in the loop. Nothing was observed to break at that value,
+ * but the margin was thinner than the deadline deserves for the sake of a
+ * frame rate the link cannot carry anyway. */
+#define APP_CODEC_STEP_BUDGET_US 3000U

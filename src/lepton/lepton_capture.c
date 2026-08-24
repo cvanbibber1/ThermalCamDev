@@ -493,6 +493,10 @@ void lepton_capture_hold_frame(bool hold) {
   apply_hold();
 }
 
+bool lepton_capture_chunk_pending(void) {
+  return transfer_ready;
+}
+
 void lepton_capture_hold_for_codec(bool hold) {
   codec_held = hold;
   apply_hold();
