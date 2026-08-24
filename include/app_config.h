@@ -27,6 +27,21 @@
  * settled. Captures that ask for a correction first wait this long. */
 #define APP_LEPTON_FFC_SETTLE_MS 1500U
 #define APP_LEPTON_RESYNC_MS 200U
+/* Longest the sensor may go without completing a frame before the firmware
+ * stops believing it.
+ *
+ * The transport can look perfectly healthy while the sensor produces nothing
+ * but discard packets: chunks keep arriving on time, so none of the timeouts
+ * above notice. Observed on the bench, and it never recovered, because
+ * re-deriving the bit alignment is not an escape from a sensor that has
+ * stopped. In orbit there is nobody to power cycle the board.
+ *
+ * Five seconds is about forty missed frames, and far longer than the ~1 s the
+ * shutter takes, so a correction cannot trip it. */
+#define APP_LEPTON_FRAME_STALL_MS 5000U
+/* Resyncs to attempt before power cycling the sensor instead. A resync only
+ * reacquires the link; if the sensor itself is wedged, only power fixes it. */
+#define APP_LEPTON_STALL_RESYNCS 3U
 /* Longest a ready chunk may wait for HAL/DMA to release before resyncing. */
 #define APP_LEPTON_CHUNK_STALL_MS 5U
 /* A chunk clocks out in about 13 ms; past this the transport is dead. */

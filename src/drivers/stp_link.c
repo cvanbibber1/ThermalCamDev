@@ -22,7 +22,7 @@
  * MUST be 0 for flight. Free running means this node drives the bus without
  * being asked, which would collide with other experiments and with DICE. */
 #ifndef STP_BENCH_FREERUN
-#define STP_BENCH_FREERUN 1
+#define STP_BENCH_FREERUN 0
 #endif
 
 /* Vitals cadence. LRT carries telemetry only, so it is small and infrequent

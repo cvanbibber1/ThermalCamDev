@@ -260,6 +260,11 @@ def main() -> int:
     parser.add_argument("--request",
                         choices=["lrt", "hrt-go", "hrt-stop", "hrt-stop-loss", "command"],
                         help="send a DICE request before listening")
+    parser.add_argument("--poll", type=float, default=1.0, metavar="SECONDS",
+                        help="ask for vitals this often, standing in for the "
+                             "flight computer. Flight firmware only speaks when "
+                             "spoken to, so without this nothing arrives. "
+                             "0 disables it")
     parser.add_argument("--repeat-request", type=int, default=1,
                         help="send the request this many times, to prove it is honoured")
     parser.add_argument("--command", choices=sorted(COMMANDS),
@@ -308,8 +313,20 @@ def main() -> int:
     last_report = started
 
     print(f"listening on {args.port} at {args.baud} baud, sync {sync.hex(' ')}")
+    # The experiment is a slave: in flight it transmits only in reply to a
+    # request, so something has to play the flight computer. This does, at a
+    # cadence matching the vitals rate DICE is expected to use.
+    lrt_request = build_request(codec, 0x81, args.target)
+    last_poll = 0.0
     try:
         while args.seconds <= 0.0 or (time.time() - started) < args.seconds:
+            if args.poll > 0.0 and (time.time() - last_poll) >= args.poll:
+                last_poll = time.time()
+                try:
+                    port.write(lrt_request)
+                    port.flush()
+                except Exception:  # noqa: BLE001 - reported by the read below
+                    pass
             chunk = port.read(4096)
             if chunk:
                 buffer.extend(chunk)

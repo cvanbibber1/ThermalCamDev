@@ -47,6 +47,10 @@ static bool frame_held;
 static lepton_agc_t frame_agc = {0U, 0U};
 static lepton_capture_status_t capture_status;
 static uint32_t state_started_ms;
+/* Frame-stall supervision: when the sensor last completed a frame, and how
+ * many resyncs have been tried since it stopped. */
+static uint32_t last_frame_ms;
+static uint8_t stall_resyncs;
 static uint32_t last_boot_poll_ms;
 static volatile uint32_t chunk_ready_ms;
 volatile uint32_t vospi_diagnostic_packets;
@@ -55,6 +59,11 @@ volatile int32_t vospi_diagnostic_result;
 static void enter_state(lepton_state_t state) {
   capture_status.state = state;
   state_started_ms = HAL_GetTick();
+  if (state == LEPTON_STATE_STREAMING) {
+    /* Give the sensor the full stall allowance from the moment it starts,
+     * rather than measuring from whenever it last managed a frame. */
+    last_frame_ms = state_started_ms;
+  }
 }
 
 static void stop_spi_and_resync(void) {
@@ -90,6 +99,8 @@ static bool start_stream(void) {
 
 void lepton_capture_init(void) {
   memset(&capture_status, 0, sizeof(capture_status));
+  last_frame_ms = HAL_GetTick();
+  stall_resyncs = 0U;
   vospi_parser_init(&parser);
   board_lepton_cs(false);
   board_lepton_spi_clock_hold();
@@ -271,7 +282,12 @@ static void process_chunk(uint8_t buffer) {
       continue;
     }
     found = true;
-    handle_result(vospi_parse_segment(&parser, candidate, true));
+    vospi_result_t parsed = vospi_parse_segment(&parser, candidate, true);
+    if (parsed == VOSPI_RESULT_FRAME) {
+      last_frame_ms = HAL_GetTick();
+      stall_resyncs = 0U;
+    }
+    handle_result(parsed);
     if (capture_status.state == LEPTON_STATE_RESYNC) {
       return;
     }
@@ -388,6 +404,23 @@ void lepton_capture_task(void) {
          * that stopped delivering halves is only visible as silence. */
         health_increment(&g_health.vospi_link_stalls);
         stop_spi_and_resync();
+      } else if ((now - last_frame_ms) >= APP_LEPTON_FRAME_STALL_MS) {
+        /* Chunks are arriving but none of them carry a frame, so the link is
+         * fine and the sensor is not. Reacquire a few times in case it is only
+         * alignment, then cut its power, which is the only thing that revives
+         * a Lepton that has stopped. */
+        if (stall_resyncs >= APP_LEPTON_STALL_RESYNCS) {
+          stall_resyncs = 0U;
+          last_frame_ms = now;
+          health_increment(&g_health.camera_stalls);
+          board_lepton_cs(false);
+          enter_state(LEPTON_STATE_RETRY);
+        } else {
+          ++stall_resyncs;
+          last_frame_ms = now;
+          health_increment(&g_health.camera_stalls);
+          stop_spi_and_resync();
+        }
       } else {
         /* Only between chunks: the CCI read blocks for several milliseconds
          * and a chunk buffer waiting to be parsed must not be delayed. */

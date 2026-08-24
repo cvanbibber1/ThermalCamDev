@@ -25,4 +25,20 @@ void board_lepton_cs(bool selected);
 void board_lepton_spi_clock_hold(void);
 void board_lepton_spi_clock_enable(void);
 void board_rs485_de(bool enabled);
+
+/* Independent watchdog.
+ *
+ * The experiment cannot be power cycled in orbit, so nothing may be able to
+ * stop it permanently. The IWDG runs from the LSI, independently of the core
+ * clock and of the interrupt mask, so it resets the part even from a fault
+ * handler with interrupts disabled. Once started it cannot be stopped.
+ *
+ * The timeout is generous -- tens of seconds -- because the only thing that
+ * legitimately stalls this firmware is a flash sector erase, which the
+ * datasheet allows up to 3 seconds for. A false reset in flight would be far
+ * worse than a slow recovery. */
+void board_watchdog_init(void);
+void board_watchdog_refresh(void);
+
+/* Record an unrecoverable fault and wait for the watchdog to reset the part. */
 void board_fatal(uint32_t code);
