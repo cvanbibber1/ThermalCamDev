@@ -39,6 +39,9 @@ typedef struct {
    * produced one yet. Distinguishes a link starved by the encoder from one
    * starved by how often the task loop comes round. */
   uint32_t codec_chunk_starved;
+  /* Times the sensor stopped producing frames while the transport still looked
+   * healthy, and had to be reacquired or power cycled. */
+  uint32_t camera_stalls;
 } health_counters_t;
 
 extern health_counters_t g_health;

@@ -336,11 +336,41 @@ void board_rs485_de(bool enabled) {
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, enabled ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
+static IWDG_HandleTypeDef hiwdg;
+
+void board_watchdog_init(void) {
+  /* LSI is nominally 32 kHz but specified over 17 to 47 kHz, so the real
+   * timeout spans roughly 11 to 31 seconds at this setting. The slow end is
+   * acceptable and the fast end still leaves several times the longest
+   * legitimate stall, which is a flash sector erase. */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_256;
+  hiwdg.Init.Reload = 2047U;
+  /* Stop the counter while a debugger has the core halted, or every breakpoint
+   * would reset the part. This bit does nothing without a debugger attached. */
+  __HAL_DBGMCU_FREEZE_IWDG();
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK) {
+    /* Nothing to be done: without the watchdog the firmware still runs, and
+     * refusing to start would be worse than running unprotected. */
+    g_health.fatal_code = 0xB201U;
+  }
+}
+
+void board_watchdog_refresh(void) {
+  (void)HAL_IWDG_Refresh(&hiwdg);
+}
+
 void board_fatal(uint32_t code) {
   g_health.fatal_code = code;
+  /* Let go of the bus and the sensor before stopping, so a dead experiment
+   * cannot hold the shared RS-422 line down or leave the Lepton selected. */
   board_rs485_de(false);
   board_lepton_cs(false);
   __disable_irq();
+  /* Stop refreshing and wait. The watchdog is independent of the interrupt
+   * mask and of the core clock, so it resets the part from here; this is a
+   * pause of tens of seconds, not the end of the mission. The reset cause in
+   * telemetry will show the watchdog fired. */
   for (;;) {
     __WFI();
   }

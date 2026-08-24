@@ -88,6 +88,10 @@ static int write_record(void) {
   record.node_address = active.node_address;
   record.crc = record_crc(&record);
 
+  /* A sector erase blocks the core, and the datasheet allows it up to three
+   * seconds. Refresh first so the whole watchdog period is available for it
+   * rather than whatever happened to be left. */
+  board_watchdog_refresh();
   HAL_FLASH_Unlock();
 
   FLASH_EraseInitTypeDef erase = {0};
