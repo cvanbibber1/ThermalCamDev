@@ -27,6 +27,7 @@ camera, read the [User Guide](USER_GUIDE.md) instead.
 - [Host tools](#host-tools)
 - [Measured performance](#measured-performance)
 - [Budgets and constraints](#budgets-and-constraints)
+- [Fault tolerance and flight readiness](#fault-tolerance-and-flight-readiness)
 - [Testing](#testing)
 - [Flashing and debugging](#flashing-and-debugging)
 
@@ -389,6 +390,74 @@ Things worth knowing before proposing a change:
   together yields a YUY2-only device, so each build ships one
   (`UVC_ADVERTISE_SECOND_FORMAT`). `CAP_PROP_CONVERT_RGB=0` under DirectShow is
   the only path that returns raw 16-bit.
+
+---
+
+## Fault tolerance and flight readiness
+
+The experiment flies in low Earth orbit and cannot be power cycled or touched.
+Everything below follows from that: no failure may be permanent, and the only
+way in is RS-422.
+
+### It never speaks unless spoken to
+
+`STP_BENCH_FREERUN` is 0 for flight. The camera sends nothing at power-up,
+answers vitals only when asked, and streams images only when told. On a bus
+shared with up to five experiments and the flight computer, anything else would
+talk over somebody. The transceiver's driver enable is asserted only for the
+duration of each packet and released in the transmit-complete callback.
+
+Set it to 1 for bench work and the camera free-runs instead. **It must be 0 to
+fly**, and it is checked by listening: a correctly configured camera returns
+zero bytes to a passive listener.
+
+### Nothing can stop it permanently
+
+The independent watchdog runs from the LSI, outside the core clock and the
+interrupt mask, so it resets the part even from a fault handler with interrupts
+disabled. `board_fatal()` records the code, drops the bus and the sensor, then
+waits for it. Verified by deliberately hanging the loop: the part went quiet
+and came back seventeen seconds later reporting an IWDG reset in
+`reset_cause`.
+
+The timeout is deliberately generous. The only legitimate stall is a flash
+sector erase, which the datasheet allows three seconds for, and that erase
+refreshes the watchdog before it starts. A false reset in flight would be worse
+than a slow recovery.
+
+Failures of the dosimeter or of USB are recorded in `fatal_code` and otherwise
+ignored, because neither is needed to fly. Only the RS-422 link is worth
+refusing to run without.
+
+### The sensor is supervised, not trusted
+
+The Lepton can stop producing frames while the transport still looks perfectly
+healthy: chunks keep arriving on time, but every one is discard packets. None
+of the transport timeouts see that, and re-deriving the bit alignment is not an
+escape from a sensor that has stopped. Observed on the bench, where it never
+recovered.
+
+Frames are therefore supervised directly. Five seconds without one triggers a
+reacquisition; three of those escalate to cutting the sensor's power, which is
+the only thing that revives a stopped Lepton. `camera_stalls` counts it. The
+ladder was verified on hardware by faking the stall: resync, resync, resync,
+power cycle, reboot, streaming.
+
+### Every interface is checked
+
+| Path | Protection |
+|---|---|
+| Stored settings | Magic, version and CRC32C; falls back to defaults if any fail |
+| Sensor VoSPI | CRC on every 164-byte packet, verified, plus sequence checking |
+| RS-422 | CRC-16/CCITT-FALSE on every packet, both directions |
+| Image data | FNV-1a checksum of the source pixels, verified after decoding |
+
+What is **not** implemented is triple modular redundancy, RAM scrubbing or ECC,
+which the requirements list as optional. Corruption is detected at every
+interface and recovered by retry or reset; it is not masked. One known gap:
+`fatal_code` lives in `.bss` and does not survive the reset, so the ground sees
+that the watchdog fired but not what caused it. Moving it to an RTC backup
+register would close that.
 
 ---
 
