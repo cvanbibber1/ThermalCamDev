@@ -1275,7 +1275,8 @@ def main() -> int:
     parser.add_argument("--source", choices=["uvc", "rs422"], default="uvc",
                         help="where frames come from: USB video, or RS-422")
     parser.add_argument("--rs422-port", help="RS-422 converter port, for example COM39")
-    parser.add_argument("--rs422-baud", type=int, default=921600)
+    # Test branch: the firmware here runs at 2 Mbaud, not the 921600 of flight.
+    parser.add_argument("--rs422-baud", type=int, default=2000000)
     parser.add_argument("--target", type=lambda v: int(v, 0), default=0xC7,
                         help="camera Target ID on the RS-422 link")
     parser.add_argument("--index", type=int, help="video device index (default: probe)")

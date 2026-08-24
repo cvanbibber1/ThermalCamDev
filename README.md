@@ -8,6 +8,17 @@ plus a CDC control port, and over RS-422 as a slave on a DICE/STP flight bus.
 This README is the developer's entry point. If you only want to *use* the
 camera, read the [User Guide](USER_GUIDE.md) instead.
 
+> ### This is the fast test branch
+>
+> `flight-test/rs422-compressed-fast` runs the RS-422 link at **2,000,000
+> baud** to find out what the camera can do when the link stops being the
+> limit. It reaches the sensor's full rate.
+>
+> **Flight runs at 921600, on `flight-test/rs422-compressed`.** Nothing else
+> differs between the two branches. Do not fly this one without confirming the
+> flight computer agrees on the rate, and read the error-rate note under
+> [measured performance](#measured-performance) first.
+
 - [Quick start](#quick-start)
 - [How the firmware is put together](#how-the-firmware-is-put-together)
 - [The capture path](#the-capture-path)
@@ -161,7 +172,8 @@ frame instead, degrading to the uncompressed rate rather than failing.
 
 ## The RS-422 wire format
 
-USART2 through an ADM2582E, 921600 8N1, as an STP/DICE slave.
+USART2 through an ADM2582E, as an STP/DICE slave. **2,000,000 8N1 on this
+branch**; the flight branch uses 921600. Everything else is identical.
 
 | Setting | Value |
 |---|---|
@@ -301,27 +313,51 @@ the port and silently swallows the traffic.
 
 ## Measured performance
 
-On hardware, at 921600 baud, over 60 seconds of continuous streaming:
+**At 2,000,000 baud this branch delivers the sensor's full rate.** Measured on
+hardware over 60 seconds of continuous streaming:
 
 | Metric | Value |
 |---|---|
-| Delivered frame rate | 5.78 per second |
-| Compression achieved | 3.57x |
-| CRC errors, partial frames, checksum failures | 0, 0, 0 |
-| Sensor capture rate | 8.8 per second, no resyncs |
+| Delivered frame rate | 8.46 to 8.73 per second |
+| Sensor capture rate | 8.75 per second, no resyncs |
+| Compression achieved | 3.8x |
+| Link utilisation | about 51% |
 | Worst encoder pass | 10.7 ms, against the 12.6 ms deadline |
-| Uncompressed rate, for comparison | 1.85 per second |
 
-**8.7 frames a second is not reachable at this baud.** It needs about 8 packets
-a frame, so roughly 4.3x compression, and real scenes give 3.5x. In round
-numbers: 8.7 frames of 9 packets is 100,850 bytes a second against 92,160
-available.
+### What each rate buys
 
-The gap between 5.78 and the ~7.8 the link would allow is processor time, not
-bandwidth. Compressing costs about 16 ms on a 100 MHz Cortex-M4 that is already
-spending most of its budget assembling sensor packets, which holds the capture
-rate below the sensor's 8.8. Closing it would mean driving transmission from
-the DMA completion interrupt rather than the task loop.
+All four measured back to back with `stream-on`, so no correction skews the
+window, on scenes compressing 3.58x to 3.78x:
+
+| Baud | Frames/s | Bytes/frame | Link used | Divisor |
+|---:|---:|---:|---:|---|
+| 921,600 | 6.06 | 10,687 | ~80% | 0.5% error, the flight rate |
+| 1,000,000 | 6.48 | 10,725 | ~79% | exact |
+| 1,500,000 | 8.50 | 10,303 | ~68% | 1.0% error |
+| 2,000,000 | 8.73 | 10,151 | ~51% | exact |
+
+Below about 1.5 Mbaud the link is the limit. Above it the **sensor** is, which
+is why 2 Mbaud gains so little over 1.5 and why there is no point going higher.
+
+### The error rate is not zero at 2 Mbaud
+
+Three 60-second runs at 2 Mbaud gave 2, 2 and 0 CRC errors out of ~4,400
+packets each. Two runs at 1.5 Mbaud gave none. At 921600 the flight branch has
+never shown one.
+
+That is roughly a 0.03% packet error rate, and it costs more than it looks: a
+corrupt packet loses its frame, and the difference frames after it are refused
+until the next keyframe, so one error costs up to twelve frames.
+
+It is most likely signal integrity on this bench wiring rather than anything in
+the firmware -- short unshielded leads through a terminal block, and the
+soldered joints described in the user guide. **If you want the full rate with
+margin, 1.5 Mbaud is the better setting**: it measured 8.2 to 8.5 frames a
+second with no CRC errors at all.
+
+The delivered rate is scene dependent, because the encoder is the bottleneck
+once the link is not. A scene compressing 3.0x rather than 3.8x measured 5.3
+frames a second at the same baud.
 
 ---
 
@@ -344,9 +380,11 @@ Things worth knowing before proposing a change:
   frame period. The part is single-bank, so program and erase stall the core.
   Buffering seconds of video in RAM is feasible; minutes needs an external QSPI
   part, which the board does not have.
-- **921600 is the fastest baud available** on this bus. USART2 could reach
-  3.125 Mbaud and the transceiver is rated far higher, but the other end is
-  fixed.
+- **The baud ceiling is 3.125 Mbaud**, being APB1 (50 MHz) over 16. Only some
+  rates land on an exact divisor -- see `APP_RS485_BAUD` in `app_config.h` for
+  the table. 3 Mbaud misses by 2%, which is too far for both ends to agree, so
+  2 Mbaud is the practical maximum. The transceiver is rated far higher; the
+  constraint is the STM32 and whatever the other end can do.
 - **Windows exposes only one UVC payload format.** Offering Y16 and YUY2
   together yields a YUY2-only device, so each build ships one
   (`UVC_ADVERTISE_SECOND_FORMAT`). `CAP_PROP_CONVERT_RGB=0` under DirectShow is

@@ -111,7 +111,7 @@ def mode_listen(port: serial.Serial, seconds: float) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", required=True, help="RS-422 converter serial port")
-    parser.add_argument("--baud", type=int, default=921600)
+    parser.add_argument("--baud", type=int, default=2000000)
     parser.add_argument("--mode", choices=["pattern", "loopback", "listen"],
                         default="listen")
     parser.add_argument("--seconds", type=float, default=10.0)

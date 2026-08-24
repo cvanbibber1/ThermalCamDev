@@ -245,7 +245,8 @@ class FrameAssembler:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", required=True, help="RS-422 converter serial port")
-    parser.add_argument("--baud", type=int, default=921600)
+    # Test branch: the firmware here runs at 2 Mbaud, not the 921600 of flight.
+    parser.add_argument("--baud", type=int, default=2000000)
     parser.add_argument("--target", type=lambda v: int(v, 0), default=0xC7,
                         help="Target ID of the camera. Default 0xC7")
     parser.add_argument("--seconds", type=float, default=0.0, help="0 runs until interrupted")

@@ -4,6 +4,12 @@ A practical guide to running the Lepton 3.1R radiometric thermal camera, over
 USB on the bench and over RS-422 for flight. No prior knowledge of the design
 is assumed.
 
+> **This is the fast test branch.** The RS-422 link runs at **2,000,000 baud**
+> here, not the 921600 used for flight, which is what lets it reach the
+> sensor's full frame rate. Flight builds come from
+> `flight-test/rs422-compressed`. Everything else in this guide applies to
+> both.
+
 ## Run it now
 
 Over USB, on the bench:
@@ -169,7 +175,7 @@ options before the command are:
 | Option | Default | Meaning |
 |---|---|---|
 | `--port` | required | Serial port |
-| `--baud` | 921600 | Ignored over USB; used on RS-422 |
+| `--baud` | 2000000 | Ignored over USB; used on RS-422. 921600 on flight builds |
 | `--address` | 1 | Which camera to talk to |
 | `--timeout` | 2.0 | Seconds to wait for a reply |
 
@@ -326,7 +332,7 @@ a third-party analyser, or check one if something looks wrong.
 
 | Setting | Value |
 |---|---|
-| Baud | 921600, 8 data bits, no parity, 1 stop bit |
+| Baud | 2,000,000 on this branch, 921600 on flight builds. 8 data bits, no parity, 1 stop bit |
 | Byte order | Big endian. The sync word `0x1ACFFC1D` goes out as `1A CF FC 1D` |
 | Checksum | CRC-16/CCITT-FALSE: polynomial `0x1021`, seed `0xFFFF`, no reflection, no final xor |
 | Checksum position | The **last two bytes of every packet**, in both directions |
@@ -362,19 +368,24 @@ the sensor produced: nothing is approximated and the radiometry is untouched.
 Each frame carries a checksum of the original pixels, so the tools verify this
 on every frame rather than assuming it, and tell you if one fails.
 
-Compression is what makes the flight link usable. A raw frame is 38,400 bytes
-and the link carries 92,160 bytes a second, so uncompressed video managed 1.85
-frames a second. Real scenes compress about 3.5x, and the measured rate is now:
+Compression is what makes the flight link usable. A raw frame is 38,400 bytes,
+so uncompressed video managed 1.85 frames a second. Real scenes compress about
+3.7x, and the measured rate is now:
 
 | Link | Frames per second |
 |---|---|
 | USB video | 8.8, the sensor's full rate |
-| RS-422, compressed | about 5.8 |
+| RS-422 at 2 Mbaud, this branch | 8.5, essentially the full rate |
+| RS-422 at 921600, the flight rate | about 5.8 |
 | RS-422, uncompressed (before this) | 1.85 |
 
-**The sensor's full 8.7 frames a second is not reachable over RS-422.** It
-would need about 4.3x compression and real scenes give 3.5x; there is no faster
-baud available on this bus. If you need genuinely live video, use USB.
+**On this branch RS-422 keeps up with the sensor.** At the flight rate of
+921600 it does not: the link runs out of bandwidth first, and roughly one frame
+in three is skipped.
+
+Expect the rate to move around a little. The camera compresses each frame as it
+sends it, and how well a scene compresses depends on what is in front of the
+lens, so a busy or fast-changing scene runs slower than a still one.
 
 You may see the rate dip briefly. A single image is always sent in full rather
 than as a difference from the previous one, so `take-image` costs more than a
@@ -404,7 +415,7 @@ saving images and recording. Three differences:
 |---|---|
 | `--source rs422` | Take pictures from RS-422 |
 | `--rs422-port` | The converter's port, required with `--source rs422` |
-| `--rs422-baud` | Default 921600 |
+| `--rs422-baud` | Default 2000000 on this branch, 921600 on flight builds |
 | `--target` | Camera Target ID. Default `0xC7` |
 
 ### Asking the camera for images
@@ -440,7 +451,7 @@ The complete packet bytes for each are in [COMMANDS.md](COMMANDS.md).
 ### If the camera will not receive
 
 Fixed 2026-08-21. The symptom was that the camera transmitted perfectly --
-thousands of packets at 921600 with no checksum failures -- while nothing sent
+thousands of packets with no checksum failures -- while nothing sent
 to it ever arrived. Its received-packet counters stayed at zero, including the
 corrupt-packet counters, which is the signature of a wiring fault rather than a
 baud rate or firmware problem: a wrong baud rate still counts corrupt bytes.
@@ -731,7 +742,7 @@ All counters since power on. The ones worth watching:
 ### `bus-status`
 
 ```
-baud=921600 target_id=0xC7 (199) hrt=off coarse_time=0
+baud=2000000 target_id=0xC7 (199) hrt=off coarse_time=0
 rx: commands=0 lrt_requests=0 other_target=0 crc_errors=0 type_errors=0
 tx: lrt=112 hrt=2422
 ```

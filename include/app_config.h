@@ -31,7 +31,26 @@
 #define APP_LEPTON_CHUNK_STALL_MS 5U
 /* A chunk clocks out in about 13 ms; past this the transport is dead. */
 #define APP_LEPTON_CHUNK_TIMEOUT_MS 50U
-#define APP_RS485_BAUD 921600U
+/* RS-422 line rate.
+ *
+ * THIS BRANCH IS A TEST BRANCH AND DOES NOT MATCH FLIGHT. Flight runs at
+ * 921600 on flight-test/rs422-compressed; this raises the rate to find out
+ * what the camera can do when the link stops being the limit. The flight
+ * computer has to agree, so do not fly this without checking that it can.
+ *
+ * Pick rates the hardware can hit exactly. USART2 is clocked from APB1 at
+ * 50 MHz and divides by BRR/16, so only some rates land on an integer:
+ *
+ *     921600   BRR 54.25  0.5% error   the flight rate
+ *   1000000    BRR 50     exact
+ *   1500000    BRR 33.33  1.0% error
+ *   2000000    BRR 25     exact        <- this branch
+ *   3000000    BRR 16.67  2.0% error   too far; both ends would disagree
+ *
+ * 2,000,000 is also one of the FT232R's exact rates, so neither end is
+ * approximating. The absolute ceiling is 3.125 Mbaud, being APB1 over 16.
+ */
+#define APP_RS485_BAUD 2000000U
 /* Doubles as the STP Target ID on this branch; see STP_DEFAULT_TARGET_ID. */
 #define APP_NODE_ADDRESS_DEFAULT 0xC7U
 /* Dosimeter transfer function, in volts at PA4 after the external gain stage:
