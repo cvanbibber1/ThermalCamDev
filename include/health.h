@@ -45,6 +45,9 @@ typedef struct {
   /* The fault code that caused the previous reset, carried across it in a
    * backup register. Zero if the last start was clean. */
   uint32_t previous_fatal_code;
+  /* Keyframes the ground asked for after losing its reference. A high rate
+   * here means packets are being lost, not that the codec is misbehaving. */
+  uint32_t codec_keyframes_requested;
 } health_counters_t;
 
 extern health_counters_t g_health;

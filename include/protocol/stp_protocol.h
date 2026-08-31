@@ -97,6 +97,14 @@
 #define STP_CMD_STREAM_OFF 0x06U
 /* Capture and store the dosimeter zero for this unit. */
 #define STP_CMD_DOSIMETER_ZERO 0x07U
+/* Make the next image a keyframe.
+ *
+ * A difference frame cannot be decoded unless the one before it arrived, so a
+ * single lost packet blinds the ground until the next scheduled keyframe --
+ * up to APP_CODEC_GOP frames, which is seconds of black picture for one bad
+ * packet. The ground sends this the moment a frame fails to decode, and the
+ * blackout becomes one round trip instead. */
+#define STP_CMD_REQUEST_KEYFRAME 0x08U
 
 /* ------------------------------------------------------------ receiving -- */
 

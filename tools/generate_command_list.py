@@ -68,6 +68,7 @@ EXPERIMENT_COMMANDS = {
     "STREAM_ON": "Stream without correcting first, when the image is already settled",
     "STREAM_OFF": "Stop streaming",
     "DOSIMETER_ZERO": "Measure and store this unit's dosimeter zero",
+    "REQUEST_KEYFRAME": "Make the next image self-contained. Send this when a frame fails to decode, rather than waiting for the scheduled keyframe",
 }
 
 

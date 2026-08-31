@@ -104,6 +104,11 @@ static int8_t codec_encoding = -1;
 static uint16_t codec_reference[APP_FRAME_PIXELS];
 static bool codec_reference_valid;
 static uint32_t codec_frames_since_key;
+/* Latched when the ground asks for a keyframe, cleared only when one is
+ * actually started. Clearing the reference instead would not survive: an
+ * encode already in flight sets it valid again when it completes, and the
+ * request would be silently dropped. */
+static bool codec_force_keyframe;
 static frame_codec_encoder_t codec_encoder;
 static const uint16_t *codec_source_frame;
 static uint32_t codec_last_generation;
@@ -163,8 +168,10 @@ static void record_encode_time(uint32_t started) {
  * is a seam where two images meet. */
 static void encode_begin(const uint16_t *frame, uint32_t generation,
                          bool force_keyframe) {
-  bool keyframe = force_keyframe || !codec_reference_valid ||
+  bool keyframe = force_keyframe || codec_force_keyframe ||
+                  !codec_reference_valid ||
                   (codec_frames_since_key >= APP_CODEC_GOP);
+  codec_force_keyframe = false;
 
   uint8_t slot = codec_write;
   codec_slots[slot].generation = generation;
@@ -293,6 +300,7 @@ static void codec_task(void) {
 static void codec_reset(void) {
   lepton_capture_hold_for_codec(false);
   codec_encoding = -1;
+  codec_force_keyframe = false;
   codec_used = 0U;
   codec_read = 0U;
   codec_write = 0U;
@@ -617,6 +625,15 @@ static void execute_command(uint8_t command) {
       break;
     case STP_CMD_DOSIMETER_ZERO:
       (void)dosimeter_begin_zero();
+      break;
+    case STP_CMD_REQUEST_KEYFRAME:
+#if APP_CODEC_ENABLED
+      /* The ground has lost its reference, so anything coded against a frame
+       * it cannot decode is wasted bandwidth. This takes effect on the next
+       * frame started; one already in flight is left alone. */
+      codec_force_keyframe = true;
+      health_increment(&g_health.codec_keyframes_requested);
+#endif
       break;
     default:
       /* Unknown command: still acknowledged, but nothing is done. */

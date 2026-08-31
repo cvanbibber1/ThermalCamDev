@@ -172,6 +172,11 @@ class Stream:
         # frame itself arrived wrong.
         self.no_reference = 0
         self.checksum_failed = 0
+        # Set whenever the reference is dropped, cleared once a keyframe has
+        # been asked for. A caller that can reach the camera should send
+        # request-keyframe rather than wait for the scheduled one: the wait is
+        # up to APP_CODEC_GOP frames of black picture for one lost packet.
+        self.needs_keyframe = False
 
     def push(self, payload: bytes, mode: int) -> np.ndarray | None:
         """Decode one frame, or return None and count it if that is not possible.
@@ -190,6 +195,7 @@ class Stream:
             else:
                 self.checksum_failed += 1
             self.previous = None
+            self.needs_keyframe = True
             return None
         self.previous = frame
         self.decoded += 1

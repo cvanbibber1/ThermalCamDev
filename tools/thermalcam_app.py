@@ -486,6 +486,12 @@ class Rs422Grabber(QtCore.QThread):
                             )
                         elif size == stp.HRT_DATA_SIZE:
                             frame = assembler.push(codec, packet[6:6 + 1280])
+                            # One lost packet otherwise blanks the picture
+                            # until the next scheduled keyframe. Asking for one
+                            # turns that into a round trip.
+                            if assembler.stream.needs_keyframe:
+                                assembler.stream.needs_keyframe = False
+                                self.send_command("request-keyframe")
                             if frame is not None:
                                 self.frame_ready.emit(
                                     np.frombuffer(frame, dtype="<u2")
