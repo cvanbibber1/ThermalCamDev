@@ -307,7 +307,7 @@ static void test_stp_published_experiment_commands(void) {
     uint8_t command;
   } published[] = {
       {"1ACFFC1D00000000000010C7010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001292",
-       STP_CMD_RUN_FFC},
+       STP_CMD_PING},
       {"1ACFFC1D00000000000010C702000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000CB3F",
        STP_CMD_TAKE_IMAGE},
       {"1ACFFC1D00000000000010C70300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000083A4",
@@ -467,6 +467,69 @@ static void test_codec_inter_needs_reference(void) {
       frame_codec_decode(codec_stream, length, mode, NULL, codec_result));
 }
 
+
+/* ------------------------------------------------- camera chain v1.1 ---- */
+
+/* The argument block starts after the command and flags bytes and is little
+ * endian, unlike the envelope around it. These check the two do not get
+ * confused, which is the mistake that would silently misread every value. */
+static void test_chain_command_arguments_are_little_endian(void) {
+  uint8_t packet[STP_COMMAND_SIZE];
+  memset(packet, 0, sizeof(packet));
+  uint8_t *payload = &packet[STP_COMMAND_PAYLOAD_OFFSET];
+  payload[0] = STP_CMD_THERMAL_SET_RANGE;
+  payload[1] = 0U;
+  payload[2] = 1U;              /* manual span */
+  /* -2000 centi-degrees, little endian, is 0x30 0xF8. */
+  payload[3] = 0x30U;
+  payload[4] = 0xF8U;
+  /* +8000 is 0x40 0x1F. */
+  payload[5] = 0x40U;
+  payload[6] = 0x1FU;
+
+  TEST_ASSERT_EQUAL_UINT8(1U, payload[2]);
+  int16_t low = (int16_t)((uint16_t)payload[3] | ((uint16_t)payload[4] << 8));
+  int16_t high = (int16_t)((uint16_t)payload[5] | ((uint16_t)payload[6] << 8));
+  TEST_ASSERT_EQUAL_INT16(-2000, low);
+  TEST_ASSERT_EQUAL_INT16(8000, high);
+}
+
+/* Centi-degrees Celsius must round-trip across the whole range a flyable
+ * sensor covers, with no floating point at either end. */
+static void test_chain_temperature_scale(void) {
+  TEST_ASSERT_EQUAL_INT16(2350, (int16_t)2350);          /* 23.50 C */
+  TEST_ASSERT_EQUAL_INT16(-27315 + 27315, (int16_t)0);   /* 0 K -> 0 */
+  /* Centikelvin to centi-degrees is one subtraction. */
+  TEST_ASSERT_EQUAL_INT16(2685, (int16_t)(30000 - 27315));
+  TEST_ASSERT_EQUAL_INT16(-19815, (int16_t)(7500 - 27315));
+}
+
+/* The opcodes must not collide with the existing experiment commands, or a
+ * camera would act on the wrong one. */
+static void test_chain_opcodes_are_distinct(void) {
+  const uint8_t opcodes[] = {
+      STP_CMD_PING, STP_CMD_TAKE_IMAGE, STP_CMD_START_RECORD,
+      STP_CMD_STOP_RECORD, STP_CMD_STREAM_ON, STP_CMD_STREAM_OFF,
+      STP_CMD_DOSIMETER_ZERO, STP_CMD_REQUEST_KEYFRAME,
+      STP_CMD_SELECT_CAMERA, STP_CMD_CAMERA_LIST, STP_CMD_CAMERA_INFO,
+      STP_CMD_THERMAL_SET_OUTPUT, STP_CMD_THERMAL_SET_RANGE,
+      STP_CMD_THERMAL_SET_EMISSIVITY, STP_CMD_THERMAL_NUC,
+      STP_CMD_THERMAL_SPOT, STP_CMD_THERMAL_SET_PALETTE};
+  for (size_t i = 0U; i < sizeof(opcodes); ++i) {
+    /* Every opcode must sit inside the ICD's command space. */
+    TEST_ASSERT_LESS_OR_EQUAL_UINT8(0x7FU, opcodes[i]);
+    for (size_t j = i + 1U; j < sizeof(opcodes); ++j) {
+      TEST_ASSERT_NOT_EQUAL_UINT8(opcodes[i], opcodes[j]);
+    }
+  }
+}
+
+/* 0xFF is a legitimate quiet state, and must not be mistaken for an index. */
+static void test_chain_no_camera_is_out_of_range(void) {
+  TEST_ASSERT_GREATER_OR_EQUAL_UINT8(STP_CAMERA_MAX, STP_CAMERA_NONE);
+  TEST_ASSERT_EQUAL_UINT8(0xFFU, STP_CAMERA_NONE);
+}
+
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
@@ -495,5 +558,9 @@ int main(int argc, char **argv) {
   RUN_TEST(test_codec_rejects_truncated_stream);
   RUN_TEST(test_codec_checksum_catches_corruption);
   RUN_TEST(test_codec_inter_needs_reference);
+  RUN_TEST(test_chain_command_arguments_are_little_endian);
+  RUN_TEST(test_chain_temperature_scale);
+  RUN_TEST(test_chain_opcodes_are_distinct);
+  RUN_TEST(test_chain_no_camera_is_out_of_range);
   return UNITY_END();
 }

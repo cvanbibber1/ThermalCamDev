@@ -59,15 +59,43 @@
  *     921600   BRR 54.25  0.5% error   the flight rate
  *   1000000    BRR 50     exact
  *   1500000    BRR 33.33  1.0% error
- *   2000000    BRR 25     exact        <- this branch
+ *   2000000    BRR 25     exact
  *   3000000    BRR 16.67  2.0% error   too far; both ends would disagree
  *
  * 2,000,000 is also one of the FT232R's exact rates, so neither end is
  * approximating. The absolute ceiling is 3.125 Mbaud, being APB1 over 16.
  */
-#define APP_RS485_BAUD 2000000U
+#define APP_RS485_BAUD 921600U
 /* Doubles as the STP Target ID on this branch; see STP_DEFAULT_TARGET_ID. */
 #define APP_NODE_ADDRESS_DEFAULT 0xC7U
+
+/* This camera's index within the experiment.
+ *
+ * The Target ID names the experiment and is the same for every camera on the
+ * bus, so the index is what tells them apart. It is stored in flash, so a unit
+ * keeps its identity across power cycles, and this is only the value a blank
+ * unit starts with. Give each camera on a bus a different one.
+ *
+ * 1 matches the thermal entry in the radcam camera table, where 0 is the
+ * AR1335 visual sensor. */
+#define APP_CAMERA_INDEX_DEFAULT 1U
+
+/* What this camera is, so a thermal command sent to a visual one can be
+ * refused rather than half-obeyed. 0 is visual, 1 is thermal; the names are
+ * STP_CAMERA_KIND_* in protocol/stp_protocol.h. */
+#define APP_CAMERA_KIND 1U
+
+/* Select this camera at power-up instead of waiting to be told.
+ *
+ * The protocol says selection does not survive a reset, so a bus of cameras
+ * comes up silent and the ground chooses one. That is the safe default on a
+ * shared pair: several cameras transmitting at once would corrupt each other.
+ *
+ * Set to 1 only for a bench with a single camera, where booting selected saves
+ * sending SELECT_CAMERA first. MUST be 0 whenever more than one camera shares
+ * the bus. The host application selects on connect either way, so leaving this
+ * at 0 costs nothing. */
+#define APP_CAMERA_BOOT_SELECTED 0
 
 /* Drive the transceiver's driver-enable per packet, as a multidrop bus needs.
  *
@@ -76,12 +104,16 @@
  * can speak. That is the behaviour the protocol requires and the code for it
  * is always present.
  *
- * Set to 0 while this is the only camera on the bus, which is the case for the
- * current tests. The driver stays enabled, matching the pull-up already fitted
- * on the board, and there is no turnaround to get wrong. RS-422 is full duplex
- * on separate pairs, so holding the driver on does not stop the camera being
- * spoken to. MUST be 1 before flying on a shared bus. */
-#define APP_RS485_DE_MANAGED 0
+ * Set to 0 only on a board whose driver enable is held on by a fitted
+ * pull-up and which shares the pair with nothing else. A board without that
+ * pull-up must manage it, or the driver never turns on and the camera cannot
+ * transmit at all.
+ *
+ * The release timing is safe to rely on. The HAL enables the transmit-complete
+ * interrupt once the DMA has drained and only then calls the completion
+ * callback, so the driver is dropped after the last bit has left the shift
+ * register rather than when it reached the data register. */
+#define APP_RS485_DE_MANAGED 1
 /* Dosimeter transfer function, in volts at PA4 after the external gain stage:
  *
  *     DOSI = 0.1575 + 0.0025 * D_rad

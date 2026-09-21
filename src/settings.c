@@ -3,6 +3,7 @@
 #include "app_config.h"
 #include "board.h"
 #include "protocol/crc.h"
+#include "protocol/stp_protocol.h"
 
 #include <string.h>
 
@@ -12,14 +13,15 @@
 #define SETTINGS_ADDRESS 0x080E0000U
 
 #define SETTINGS_MAGIC 0x314D4854U /* "THM1" */
-#define SETTINGS_VERSION 1U
+#define SETTINGS_VERSION 2U
 
 typedef struct {
   uint32_t magic;
   uint32_t version;
   int32_t dosimeter_zero_uv;
   uint8_t node_address;
-  uint8_t reserved[3];
+  uint8_t camera_index;
+  uint8_t reserved[2];
   uint32_t crc;
 } stored_settings_t;
 
@@ -31,6 +33,7 @@ static uint32_t save_count;
 static void load_defaults(void) {
   active.dosimeter_zero_uv = 0;
   active.node_address = APP_NODE_ADDRESS_DEFAULT;
+  active.camera_index = APP_CAMERA_INDEX_DEFAULT;
 }
 
 static uint32_t record_crc(const stored_settings_t *record) {
@@ -50,6 +53,7 @@ void settings_init(void) {
   }
   active.dosimeter_zero_uv = record->dosimeter_zero_uv;
   active.node_address = record->node_address;
+  active.camera_index = record->camera_index;
   status = SETTINGS_OK;
 }
 
@@ -66,6 +70,15 @@ bool settings_set_dosimeter_zero(int32_t microvolts) {
   active.dosimeter_zero_uv = microvolts;
   save_requested = true;
   status = SETTINGS_SAVE_PENDING;
+  return true;
+}
+
+bool settings_set_camera_index(uint8_t index) {
+  if ((index >= STP_CAMERA_MAX) || (active.camera_index == index)) {
+    return false;
+  }
+  active.camera_index = index;
+  save_requested = true;
   return true;
 }
 
@@ -86,6 +99,7 @@ static int write_record(void) {
   record.version = SETTINGS_VERSION;
   record.dosimeter_zero_uv = active.dosimeter_zero_uv;
   record.node_address = active.node_address;
+  record.camera_index = active.camera_index;
   record.crc = record_crc(&record);
 
   /* A sector erase blocks the core, and the datasheet allows it up to three

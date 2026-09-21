@@ -341,11 +341,13 @@ class Rs422Grabber(QtCore.QThread):
     reconnected = QtCore.Signal()
     vitals_ready = QtCore.Signal(object)
 
-    def __init__(self, port: str, baud: int, target: int) -> None:
+    def __init__(self, port: str, baud: int, target: int,
+                 camera: int = 1) -> None:
         super().__init__()
         self._port = port
         self._baud = baud
         self._target = target
+        self._camera = camera
         self._running = True
         self._stp = _load_sibling("stp_monitor")
         # The reading thread owns the port, so commands are queued here and
@@ -376,13 +378,14 @@ class Rs422Grabber(QtCore.QThread):
             self._outbox_lock.unlock()
         return f"sent {name} over RS-422"
 
-    def send_command(self, name: str) -> str:
+    def send_command(self, name: str, args: bytes = b"") -> str:
         """Queue an experiment command for the reader thread to transmit."""
         stp = self._stp
         if name not in stp.COMMANDS:
             return f"unknown command {name}"
         codec = stp.Codec(True, 0xFFFF)
-        packet = stp.build_command(codec, stp.COMMANDS[name], self._target)
+        packet = stp.build_command(codec, stp.COMMANDS[name], self._target,
+                                   args=args)
         self._outbox_lock.lock()
         try:
             self._outbox.append(packet)
@@ -437,6 +440,11 @@ class Rs422Grabber(QtCore.QThread):
             # stop, so without this the window opens on a black frame and stays
             # there, with nothing on screen to explain why. Sent on every
             # reconnect too, since a camera that reset came back idle.
+            # Every camera on the bus answers to the same Target ID, so one
+            # has to be singled out before anything will reply. Selection does
+            # not survive a reset, which is why this is sent on every connect
+            # rather than assumed.
+            self.send_command("select-camera", args=bytes([self._camera]))
             self.send_command("stream-on")
             # Vitals are answers, not announcements: flight firmware sends them
             # only when asked. Without this the dosimeter and status panels sit
@@ -604,6 +612,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Which link this window is using decides part of what the panel
         # contains, so it has to be known before the panel is built.
         self._source = args.source
+        self._camera = args.camera
 
         self._build_ui()
 
@@ -1172,7 +1181,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _start_grabber(self) -> None:
         if self._source == "rs422":
-            self.grabber = Rs422Grabber(self._rs422_port, self._rs422_baud, self._target)
+            self.grabber = Rs422Grabber(self._rs422_port, self._rs422_baud,
+                                        self._target, self._camera)
             self.grabber.vitals_ready.connect(self.on_vitals)
         else:
             self.grabber = FrameGrabber(self._grabber_index)
@@ -1345,7 +1355,11 @@ def main() -> int:
                         help="where frames come from: USB video, or RS-422")
     parser.add_argument("--rs422-port", help="RS-422 converter port, for example COM39")
     # Test branch: the firmware here runs at 2 Mbaud, not the 921600 of flight.
-    parser.add_argument("--rs422-baud", type=int, default=2000000)
+    parser.add_argument("--rs422-baud", type=int, default=921600)
+    parser.add_argument("--camera", type=lambda v: int(v, 0), default=1,
+                        help="camera index within the experiment. Every camera "
+                             "on the bus shares the Target ID, so this is what "
+                             "picks one. Default 1, the thermal camera")
     parser.add_argument("--target", type=lambda v: int(v, 0), default=0xC7,
                         help="camera Target ID on the RS-422 link")
     parser.add_argument("--index", type=int, help="video device index (default: probe)")

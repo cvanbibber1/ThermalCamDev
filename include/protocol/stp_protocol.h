@@ -84,8 +84,14 @@
  * stream, or start and stop a recording, without ambiguity about what the
  * camera is currently doing. */
 #define STP_CMD_NONE 0x00U
-/* Correct the image now. Takes about a second, during which video freezes. */
-#define STP_CMD_RUN_FFC 0x01U
+/* Liveness check, payload wide. Acknowledged and nothing else.
+ *
+ * This opcode used to run a flat-field correction here, which collided with
+ * the visual camera's PING: a host checking the payload was alive would
+ * freeze this camera's image for a second. The correction is THERMAL_NUC
+ * (0x7C), which is what the combined host sends and what the camera-chain
+ * specification defines. */
+#define STP_CMD_PING 0x01U
 /* Correct, then send exactly one complete frame and stop. For high-latency
  * links where continuous streaming is not usable. */
 #define STP_CMD_TAKE_IMAGE 0x02U
@@ -105,6 +111,65 @@
  * packet. The ground sends this the moment a frame fails to decode, and the
  * blackout becomes one round trip instead. */
 #define STP_CMD_REQUEST_KEYFRAME 0x08U
+
+/* ------------------------------------------- camera chain, protocol v1.1 -- */
+
+/* Every camera on the bus answers to the same Target ID: it names the
+ * experiment, not the device. What distinguishes them is the camera index,
+ * carried inside this payload and invisible to DICE.
+ *
+ * The consequence is that every camera sees every packet, so exactly one may
+ * transmit. SELECT_CAMERA chooses it; the rest fall silent. On the radcam
+ * payload the same rule is enforced electrically, by powering one sensor at a
+ * time; here it is enforced by each camera comparing the selected index with
+ * its own. Two cameras driving the pair at once would corrupt both.
+ *
+ * 0xFF selects none, which is a legitimate quiet state rather than an error.
+ * Selection does not survive a reset: the bus comes up silent, and the ground
+ * or the host application selects a camera before expecting anything back.
+ */
+#define STP_CAMERA_NONE 0xFFU
+#define STP_CAMERA_MAX 16U
+
+#define STP_CMD_SELECT_CAMERA 0x6DU  /* index u8 */
+#define STP_CMD_CAMERA_LIST 0x6EU
+#define STP_CMD_CAMERA_INFO 0x6FU
+
+/* Thermal commands. These act on the selected camera, so a camera that is not
+ * selected ignores them, and one that is not thermal reports BAD_TYPE. */
+#define STP_CMD_THERMAL_SET_OUTPUT 0x74U     /* mode u8, palette u8, depth u8 */
+#define STP_CMD_THERMAL_SET_RANGE 0x75U      /* mode u8, low i16, high i16 */
+#define STP_CMD_THERMAL_SET_EMISSIVITY 0x76U /* emissivity u16, reflected i16 */
+#define STP_CMD_THERMAL_NUC 0x7CU
+#define STP_CMD_THERMAL_SPOT 0x7DU           /* x u16, y u16, w u16, h u16 */
+#define STP_CMD_THERMAL_SET_PALETTE 0x7EU    /* palette u8 */
+
+/* Output modes. Radiometric is every pixel a temperature; palette is an 8-bit
+ * mapping that is viewable but no longer a measurement. */
+#define STP_THERMAL_OUTPUT_RADIOMETRIC 0U
+#define STP_THERMAL_OUTPUT_PALETTE 1U
+#define STP_THERMAL_OUTPUT_BOTH 2U
+
+#define STP_PALETTE_WHITE_HOT 0U
+#define STP_PALETTE_BLACK_HOT 1U
+#define STP_PALETTE_IRONBOW 2U
+#define STP_PALETTE_RAINBOW 3U
+#define STP_PALETTE_ARCTIC 4U
+#define STP_PALETTE_COUNT 5U
+
+/* Camera classes, reported by CAMERA_INFO and used to reject a thermal
+ * command sent to a visual camera. */
+#define STP_CAMERA_KIND_VISUAL 0U
+#define STP_CAMERA_KIND_THERMAL 1U
+
+/* Command results. The 8-byte acknowledgement has no room for a status, so the
+ * outcome of the last command is reported in telemetry instead. */
+#define STP_RESULT_OK 0U
+#define STP_RESULT_BAD_PARAM 1U
+#define STP_RESULT_BAD_TYPE 2U
+#define STP_RESULT_CAMERA_FAULT 3U
+#define STP_RESULT_NOT_SELECTED 4U
+#define STP_RESULT_UNKNOWN_COMMAND 5U
 
 /* ------------------------------------------------------------ receiving -- */
 

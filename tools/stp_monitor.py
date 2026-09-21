@@ -48,7 +48,7 @@ COMMAND_PAYLOAD_OFFSET = 12
 # Experiment command ids, carried in the command payload. See
 # include/protocol/stp_protocol.h; the specification does not define this.
 COMMANDS = {
-    "run-ffc": 0x01,
+    "ping": 0x01,
     "take-image": 0x02,
     "start-record": 0x03,
     "stop-record": 0x04,
@@ -56,7 +56,27 @@ COMMANDS = {
     "stream-off": 0x06,
     "dosimeter-zero": 0x07,
     "request-keyframe": 0x08,
+    # Camera chain, protocol v1.1. Every camera on the bus shares the Target
+    # ID, so these are how one is singled out and driven.
+    "select-camera": 0x6D,
+    "camera-list": 0x6E,
+    "camera-info": 0x6F,
+    "thermal-set-output": 0x74,
+    "thermal-set-range": 0x75,
+    "thermal-set-emissivity": 0x76,
+    "thermal-nuc": 0x7C,
+    # The correction, under the name the existing tooling uses for it.
+    "run-ffc": 0x7C,
+    "thermal-spot": 0x7D,
+    "thermal-set-palette": 0x7E,
 }
+
+PALETTES = {"white-hot": 0, "black-hot": 1, "ironbow": 2, "rainbow": 3,
+            "arctic": 4}
+OUTPUT_MODES = {"radiometric": 0, "palette": 1, "both": 2}
+RESULTS = {0: "ok", 1: "bad parameter", 2: "wrong camera type",
+           3: "camera fault", 4: "not selected", 5: "unknown command"}
+CAMERA_NONE = 0xFF
 
 CAPTURE_STATES = {0: "idle", 1: "correcting", 2: "single image", 3: "recording"}
 SHUTTER_MODES = {0: "manual", 1: "auto", 2: "external"}
@@ -130,6 +150,45 @@ def transmitted_size(packet_type: int) -> int | None:
             TYPE_HRT_GO: HRT_DATA_SIZE}.get(packet_type)
 
 
+def command_arguments(args) -> bytes:
+    """Pack the argument block for whichever command was asked for.
+
+    Temperatures are given on the command line in degrees Celsius because that
+    is what an operator thinks in, and sent as centi-degrees because that is
+    what the protocol carries: 23.50 C becomes 2350, which keeps 0.01 C
+    resolution without floating point on the camera.
+    """
+    name = args.command
+    if name == "select-camera":
+        if args.camera is None:
+            raise SystemExit("select-camera needs --camera")
+        return struct.pack("<B", args.camera)
+    if name == "thermal-set-palette":
+        if args.palette is None:
+            raise SystemExit("thermal-set-palette needs --palette")
+        return struct.pack("<B", PALETTES[args.palette])
+    if name == "thermal-set-output":
+        if args.output_mode is None:
+            raise SystemExit("thermal-set-output needs --output-mode")
+        palette = PALETTES.get(args.palette, PALETTES["ironbow"])
+        return struct.pack("<BBB", OUTPUT_MODES[args.output_mode], palette, 16)
+    if name == "thermal-set-range":
+        if args.range is None:
+            return struct.pack("<Bhh", 0, 0, 0)      # automatic span
+        low, high = (int(round(v * 100)) for v in args.range)
+        return struct.pack("<Bhh", 1, low, high)
+    if name == "thermal-set-emissivity":
+        if args.emissivity is None:
+            raise SystemExit("thermal-set-emissivity needs --emissivity")
+        return struct.pack("<Hh", int(round(args.emissivity * 1000)),
+                           int(round(args.reflected * 100)))
+    if name == "thermal-spot":
+        if args.spot is None:
+            raise SystemExit("thermal-spot needs --spot X Y W H")
+        return struct.pack("<HHHH", *args.spot)
+    return b""
+
+
 def build_request(codec: Codec, packet_type: int, target_id: int) -> bytes:
     packet = bytearray(REQUEST_SIZE)
     packet[0:4] = codec.sync_bytes()
@@ -142,8 +201,14 @@ def build_request(codec: Codec, packet_type: int, target_id: int) -> bytes:
 
 
 def build_command(codec: Codec, command_id: int, target_id: int,
-                  parameter: int = 0) -> bytes:
-    """A 120-byte command packet carrying one experiment command."""
+                  parameter: int = 0, args: bytes = b"") -> bytes:
+    """A 120-byte command packet carrying one experiment command.
+
+    `args` is the camera-chain argument block, which starts after the command
+    and flags bytes and is little endian -- unlike the packet envelope around
+    it, which is big endian. `parameter` is the older 16-bit form and is
+    ignored when `args` is given.
+    """
     packet = bytearray(COMMAND_SIZE)
     packet[0:4] = codec.sync_bytes()
     struct.pack_into(codec.order + "I", packet, 4, int(time.time()))
@@ -152,7 +217,10 @@ def build_command(codec: Codec, command_id: int, target_id: int,
     packet[11] = target_id
     packet[COMMAND_PAYLOAD_OFFSET] = command_id
     packet[COMMAND_PAYLOAD_OFFSET + 1] = 0
-    struct.pack_into(codec.order + "H", packet, COMMAND_PAYLOAD_OFFSET + 2, parameter)
+    if args:
+        packet[COMMAND_PAYLOAD_OFFSET + 2:COMMAND_PAYLOAD_OFFSET + 2 + len(args)] = args
+    else:
+        struct.pack_into(codec.order + "H", packet, COMMAND_PAYLOAD_OFFSET + 2, parameter)
     struct.pack_into(codec.order + "H", packet, COMMAND_SIZE - 2,
                      codec.crc(bytes(packet[4:COMMAND_SIZE - 2])))
     return bytes(packet)
@@ -167,7 +235,47 @@ def decode_lrt(codec: Codec, payload: bytes) -> dict:
             "scene_max_c": codec.u16(payload, 50) / 100.0 - 273.15,
             "scene_centre_c": codec.u16(payload, 52) / 100.0 - 273.15,
         }
+    # Camera chain and thermal state. Centi-degrees Celsius on the wire; the
+    # camera holds them as signed 16-bit, so they are unpacked as such.
+    def cc(offset):
+        raw = codec.u16(payload, offset)
+        return (raw - 65536 if raw >= 32768 else raw) / 100.0
+
+    camera = {
+        "camera_index": payload[192],
+        "camera_active": payload[193],
+        "camera_count": payload[194],
+        "camera_is_active": bool(payload[195] & 1),
+        "camera_is_thermal": bool(payload[195] & 2),
+        "camera_selections": codec.u32(payload, 196),
+        "camera_select_failures": codec.u32(payload, 200),
+        "last_command": payload[204],
+        "last_result": RESULTS.get(payload[205], payload[205]),
+    }
+    thermal = {}
+    if payload[195] & 2:
+        flags = payload[222]
+        thermal = {
+            "thermal_spot_mean_c": cc(208),
+            "thermal_spot_min_c": cc(210),
+            "thermal_spot_max_c": cc(212),
+            "thermal_scene_min_c": cc(214),
+            "thermal_scene_max_c": cc(216),
+            "thermal_emissivity": codec.u16(payload, 218) / 1000.0,
+            "thermal_output_mode": payload[220],
+            "thermal_palette": payload[221],
+            "thermal_nuc_active": bool(flags & 1),
+            "thermal_auto_range": bool(flags & 2),
+            "thermal_range_valid": bool(flags & 4),
+            "thermal_over_range": bool(flags & 8),
+            "thermal_nuc_count": payload[223],
+            "thermal_reflected_c": cc(224),
+            "thermal_range_low_c": cc(226),
+            "thermal_range_high_c": cc(228),
+        }
     return {
+        **camera,
+        **thermal,
         "layout": codec.u32(payload, 0),
         "uptime_ms": codec.u32(payload, 4),
         "coarse_time": codec.u32(payload, 8),
@@ -266,7 +374,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", required=True, help="RS-422 converter serial port")
     # Test branch: the firmware here runs at 2 Mbaud, not the 921600 of flight.
-    parser.add_argument("--baud", type=int, default=2000000)
+    parser.add_argument("--baud", type=int, default=921600)
     parser.add_argument("--target", type=lambda v: int(v, 0), default=0xC7,
                         help="Target ID of the camera. Default 0xC7")
     parser.add_argument("--seconds", type=float, default=0.0, help="0 runs until interrupted")
@@ -289,6 +397,20 @@ def main() -> int:
                         help="send the request this many times, to prove it is honoured")
     parser.add_argument("--command", choices=sorted(COMMANDS),
                         help="send an experiment command before listening")
+    parser.add_argument("--camera", type=lambda v: int(v, 0),
+                        help="camera index for select-camera, or 255 for none")
+    parser.add_argument("--palette", choices=sorted(PALETTES),
+                        help="palette for thermal-set-palette / thermal-set-output")
+    parser.add_argument("--output-mode", choices=sorted(OUTPUT_MODES),
+                        help="mode for thermal-set-output")
+    parser.add_argument("--range", nargs=2, type=float, metavar=("LOW", "HIGH"),
+                        help="manual span in degrees Celsius; omit for automatic")
+    parser.add_argument("--emissivity", type=float,
+                        help="0 to 1, for thermal-set-emissivity")
+    parser.add_argument("--reflected", type=float, default=20.0,
+                        help="reflected apparent temperature in C, default 20")
+    parser.add_argument("--spot", nargs=4, type=int, metavar=("X", "Y", "W", "H"),
+                        help="box in sensor pixels for thermal-spot")
     parser.add_argument("--raw", action="store_true", help="dump every packet header")
     parser.add_argument("--no-recover", action="store_true",
                         help="do not ask for a keyframe after a decode failure, "
@@ -324,7 +446,8 @@ def main() -> int:
               f"0x{args.target:02X}: {request.hex(' ')}")
 
     if args.command:
-        packet = build_command(codec, COMMANDS[args.command], args.target)
+        packet = build_command(codec, COMMANDS[args.command], args.target,
+                               args=command_arguments(args))
         port.write(packet)
         port.flush()
         print(f"sent command {args.command} (0x{COMMANDS[args.command]:02X}) "

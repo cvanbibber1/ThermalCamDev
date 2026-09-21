@@ -69,6 +69,41 @@ static uint32_t correcting_until_ms;
 static bool burst_active;
 static uint8_t pending_capture_target;
 
+/* ---------------------------------------------------- camera selection -- */
+
+/* Which camera is selected across the whole experiment, and which one this is.
+ *
+ * Every camera on the bus shares the Target ID, so all of them receive every
+ * packet and exactly one may answer. A camera that is not selected processes
+ * commands only far enough to notice SELECT_CAMERA, and transmits nothing at
+ * all: two drivers on one pair would corrupt each other's packets.
+ *
+ * Selection is deliberately not persisted. A reset leaves the bus quiet rather
+ * than restoring a camera that may no longer be the one the ground wants. */
+static uint8_t camera_selected = STP_CAMERA_NONE;
+static uint8_t camera_index = APP_CAMERA_INDEX_DEFAULT;
+static uint32_t camera_selections;
+static uint32_t camera_select_failures;
+static uint8_t last_command;
+static uint8_t last_result;
+
+/* Thermal state. These affect what is reported and how the ground renders,
+ * never the raw sensor counts, so a capture taken with the wrong emissivity is
+ * still correctable on the ground provided the radiometric data came down. */
+static uint8_t thermal_output_mode = STP_THERMAL_OUTPUT_RADIOMETRIC;
+static uint8_t thermal_palette = STP_PALETTE_IRONBOW;
+static uint8_t thermal_range_auto = 1U;
+static int16_t thermal_range_low_cc;
+static int16_t thermal_range_high_cc;
+static uint16_t thermal_emissivity_milli = 1000U;
+static int16_t thermal_reflected_cc = 2000;
+static uint16_t thermal_spot_x, thermal_spot_y, thermal_spot_w, thermal_spot_h;
+static bool thermal_spot_valid;
+static int16_t thermal_spot_min_cc, thermal_spot_max_cc, thermal_spot_mean_cc;
+static uint8_t thermal_nuc_count;
+
+static bool camera_is_selected(void) { return camera_selected == camera_index; }
+
 /* Encoded frames waiting to go out, and the frame they were coded against.
  *
  * There are two output slots so the encoder can start the next frame while the
@@ -313,6 +348,11 @@ static void codec_reset(void) {
 #endif
 
 static bool begin_transmit(size_t length) {
+  /* The one place every packet passes through, so the one place worth
+   * enforcing that an unselected camera stays off the bus. */
+  if (!camera_is_selected()) {
+    return false;
+  }
   if (current.transmitting || (length == 0U)) {
     if (length != 0U) {
       health_increment(&g_health.rs485_tx_busy);
@@ -337,6 +377,13 @@ bool stp_link_init(void) {
    * power cycles; the stored default matches STP_DEFAULT_TARGET_ID. */
   uint8_t stored = settings_get()->node_address;
   current.target_id = (stored == 0U) ? STP_DEFAULT_TARGET_ID : stored;
+  /* The Target ID names the experiment and is shared with every other camera
+   * on the bus; the index is what tells this one apart. */
+  camera_index = settings_get()->camera_index;
+  if (camera_index >= STP_CAMERA_MAX) {
+    camera_index = APP_CAMERA_INDEX_DEFAULT;
+  }
+  camera_selected = APP_CAMERA_BOOT_SELECTED ? camera_index : STP_CAMERA_NONE;
   /* Bench builds start streaming; flight waits to be told. Either way the
    * flag is what the task loop obeys, so stop always works. */
   current.hrt_enabled = (STP_BENCH_FREERUN != 0);
@@ -406,9 +453,11 @@ static size_t build_lrt_payload(uint8_t *out, size_t capacity) {
   /* Scene temperature summary in centikelvin, matching the pixel units. */
   uint32_t generation = 0U;
   const uint16_t *frame = lepton_capture_latest_frame(&generation);
+  uint16_t minimum = 0U;
+  uint16_t maximum = 0U;
   if (frame != NULL) {
-    uint16_t minimum = frame[0];
-    uint16_t maximum = frame[0];
+    minimum = frame[0];
+    maximum = frame[0];
     for (size_t index = 1U; index < APP_FRAME_PIXELS; ++index) {
       if (frame[index] < minimum) {
         minimum = frame[index];
@@ -420,6 +469,60 @@ static size_t build_lrt_payload(uint8_t *out, size_t capacity) {
     put_u16(&out[50], maximum);
     put_u16(&out[52], frame[(APP_FRAME_HEIGHT / 2U) * APP_FRAME_WIDTH +
                             (APP_FRAME_WIDTH / 2U)]);
+  }
+
+  /* ------------------------------------------------- camera and thermal --
+   *
+   * These sit above the health block, which ends at 192. The specification
+   * puts them lower and shortens an event ring to make room; this payload has
+   * no event ring and 1056 bytes spare, so nothing has to be given up.
+   */
+  out[192] = camera_index;
+  out[193] = camera_selected;
+  out[194] = 1U;                       /* cameras this unit speaks for */
+  out[195] = (uint8_t)((camera_is_selected() ? 1U : 0U) |
+                       ((APP_CAMERA_KIND == STP_CAMERA_KIND_THERMAL) ? 2U : 0U));
+  put_u32(&out[196], camera_selections);
+  put_u32(&out[200], camera_select_failures);
+  out[204] = last_command;
+  out[205] = last_result;
+
+  /* Thermal block, laid out as the specification defines it. Centi-degrees
+   * Celsius throughout: 2350 is 23.50 C, which gives 0.01 C resolution across
+   * the whole range any flyable sensor covers, with no floating point. */
+  if (APP_CAMERA_KIND == STP_CAMERA_KIND_THERMAL) {
+    uint8_t flags = 0U;
+    if (camera.ffc_elapsed_ms < APP_LEPTON_FFC_SETTLE_MS) {
+      flags |= 1U;                     /* correction in progress */
+    }
+    if (thermal_range_auto != 0U) {
+      flags |= 2U;
+    }
+    if (frame != NULL) {
+      flags |= 4U;                     /* range valid */
+      int16_t scene_low = (int16_t)((int32_t)minimum - 27315);
+      int16_t scene_high = (int16_t)((int32_t)maximum - 27315);
+      put_u16(&out[214], (uint16_t)scene_low);
+      put_u16(&out[216], (uint16_t)scene_high);
+      if ((thermal_range_auto == 0U) &&
+          ((scene_low < thermal_range_low_cc) ||
+           (scene_high > thermal_range_high_cc))) {
+        flags |= 8U;                   /* over range: the picture saturates */
+      }
+    }
+    if (thermal_spot_valid) {
+      put_u16(&out[208], (uint16_t)thermal_spot_mean_cc);
+      put_u16(&out[210], (uint16_t)thermal_spot_min_cc);
+      put_u16(&out[212], (uint16_t)thermal_spot_max_cc);
+    }
+    put_u16(&out[218], thermal_emissivity_milli);
+    out[220] = thermal_output_mode;
+    out[221] = thermal_palette;
+    out[222] = flags;
+    out[223] = thermal_nuc_count;
+    put_u16(&out[224], (uint16_t)thermal_reflected_cc);
+    put_u16(&out[226], (uint16_t)thermal_range_low_cc);
+    put_u16(&out[228], (uint16_t)thermal_range_high_cc);
   }
 
   /* The whole health block, so a ground operator sees the same counters the
@@ -600,10 +703,109 @@ static void stop_capture(void) {
 #endif
 }
 
-static void execute_command(uint8_t command) {
+/* Arguments start after the command byte and the flags byte. Little endian,
+ * matching the camera-chain specification; the packet envelope around them is
+ * big endian, which is why these are unpacked by hand rather than with the
+ * envelope helpers. */
+static uint16_t arg_u16(const uint8_t *payload, size_t offset) {
+  return (uint16_t)((uint16_t)payload[2U + offset] |
+                    ((uint16_t)payload[3U + offset] << 8));
+}
+
+static int16_t arg_i16(const uint8_t *payload, size_t offset) {
+  return (int16_t)arg_u16(payload, offset);
+}
+
+static uint8_t arg_u8(const uint8_t *payload, size_t offset) {
+  return payload[2U + offset];
+}
+
+/* Point the whole experiment at one camera.
+ *
+ * Every camera runs this, and each decides for itself whether it is the one
+ * named. The camera being deselected stops first, because a stream or a
+ * recording points at hardware that is about to stop being listened to. */
+static uint8_t select_camera(uint8_t index) {
+  if ((index != STP_CAMERA_NONE) && (index >= STP_CAMERA_MAX)) {
+    ++camera_select_failures;
+    return STP_RESULT_BAD_PARAM;
+  }
+  bool was_selected = camera_is_selected();
+  camera_selected = index;
+  if (was_selected && !camera_is_selected()) {
+    /* Switching away is destructive to work in progress, by design. */
+    stop_capture();
+  }
+  if (camera_is_selected()) {
+    ++camera_selections;
+  }
+  return STP_RESULT_OK;
+}
+
+static uint8_t thermal_guard(void) {
+  if (camera_selected == STP_CAMERA_NONE) {
+    return STP_RESULT_CAMERA_FAULT;
+  }
+  if (APP_CAMERA_KIND != STP_CAMERA_KIND_THERMAL) {
+    return STP_RESULT_BAD_TYPE;
+  }
+  return STP_RESULT_OK;
+}
+
+/* Measure a box, in centi-degrees Celsius. The sensor reports centikelvin, so
+ * the conversion is a constant subtraction and no floating point is needed at
+ * either end. */
+static void thermal_measure_spot(void) {
+  uint32_t generation = 0U;
+  const uint16_t *frame = lepton_capture_latest_frame(&generation);
+  thermal_spot_valid = false;
+  if ((frame == NULL) || (thermal_spot_w == 0U) || (thermal_spot_h == 0U)) {
+    return;
+  }
+  uint32_t x0 = thermal_spot_x, y0 = thermal_spot_y;
+  uint32_t x1 = x0 + thermal_spot_w, y1 = y0 + thermal_spot_h;
+  if (x1 > APP_FRAME_WIDTH) { x1 = APP_FRAME_WIDTH; }
+  if (y1 > APP_FRAME_HEIGHT) { y1 = APP_FRAME_HEIGHT; }
+  if ((x0 >= x1) || (y0 >= y1)) {
+    return;
+  }
+  uint16_t lowest = 0xFFFFU, highest = 0U;
+  uint32_t total = 0U, count = 0U;
+  for (uint32_t y = y0; y < y1; ++y) {
+    for (uint32_t x = x0; x < x1; ++x) {
+      uint16_t value = frame[(y * APP_FRAME_WIDTH) + x];
+      if (value < lowest) { lowest = value; }
+      if (value > highest) { highest = value; }
+      total += value;
+      ++count;
+    }
+  }
+  thermal_spot_min_cc = (int16_t)((int32_t)lowest - 27315);
+  thermal_spot_max_cc = (int16_t)((int32_t)highest - 27315);
+  thermal_spot_mean_cc = (int16_t)((int32_t)(total / count) - 27315);
+  thermal_spot_valid = true;
+}
+
+static void execute_command(uint8_t command, const uint8_t *payload) {
+  last_command = command;
+  last_result = STP_RESULT_OK;
+
+  /* SELECT_CAMERA is the one command every camera must act on whether or not
+   * it is the selected one; that is how selection moves. */
+  if (command == STP_CMD_SELECT_CAMERA) {
+    last_result = select_camera(arg_u8(payload, 0U));
+    return;
+  }
+  /* Everything else belongs to whichever camera is selected. A camera that is
+   * not selected does nothing and, more importantly, says nothing. */
+  if (!camera_is_selected()) {
+    last_result = STP_RESULT_NOT_SELECTED;
+    return;
+  }
+
   switch (command) {
-    case STP_CMD_RUN_FFC:
-      (void)lepton_capture_run_ffc();
+    case STP_CMD_PING:
+      /* Liveness only. The acknowledgement is the whole answer. */
       break;
     case STP_CMD_TAKE_IMAGE:
       begin_corrected_capture(STP_CAPTURE_SINGLE);
@@ -635,8 +837,87 @@ static void execute_command(uint8_t command) {
       health_increment(&g_health.codec_keyframes_requested);
 #endif
       break;
+    case STP_CMD_CAMERA_LIST:
+    case STP_CMD_CAMERA_INFO:
+      /* Answered through telemetry rather than a reply packet: the
+       * acknowledgement has no room, and the camera block is polled anyway. */
+      break;
+    case STP_CMD_THERMAL_SET_OUTPUT: {
+      last_result = thermal_guard();
+      if (last_result != STP_RESULT_OK) { break; }
+      uint8_t mode = arg_u8(payload, 0U);
+      uint8_t palette = arg_u8(payload, 1U);
+      if ((mode > STP_THERMAL_OUTPUT_BOTH) || (palette >= STP_PALETTE_COUNT)) {
+        last_result = STP_RESULT_BAD_PARAM;
+        break;
+      }
+      thermal_output_mode = mode;
+      thermal_palette = palette;
+      break;
+    }
+    case STP_CMD_THERMAL_SET_PALETTE: {
+      last_result = thermal_guard();
+      if (last_result != STP_RESULT_OK) { break; }
+      uint8_t palette = arg_u8(payload, 0U);
+      if (palette >= STP_PALETTE_COUNT) {
+        last_result = STP_RESULT_BAD_PARAM;
+        break;
+      }
+      thermal_palette = palette;
+      break;
+    }
+    case STP_CMD_THERMAL_SET_RANGE: {
+      last_result = thermal_guard();
+      if (last_result != STP_RESULT_OK) { break; }
+      uint8_t mode = arg_u8(payload, 0U);
+      int16_t low = arg_i16(payload, 1U);
+      int16_t high = arg_i16(payload, 3U);
+      if ((mode > 1U) || ((mode == 1U) && (high <= low))) {
+        last_result = STP_RESULT_BAD_PARAM;
+        break;
+      }
+      thermal_range_auto = (mode == 0U) ? 1U : 0U;
+      thermal_range_low_cc = low;
+      thermal_range_high_cc = high;
+      break;
+    }
+    case STP_CMD_THERMAL_SET_EMISSIVITY: {
+      last_result = thermal_guard();
+      if (last_result != STP_RESULT_OK) { break; }
+      uint16_t emissivity = arg_u16(payload, 0U);
+      if ((emissivity == 0U) || (emissivity > 1000U)) {
+        last_result = STP_RESULT_BAD_PARAM;
+        break;
+      }
+      thermal_emissivity_milli = emissivity;
+      thermal_reflected_cc = arg_i16(payload, 2U);
+      break;
+    }
+    case STP_CMD_THERMAL_NUC:
+      last_result = thermal_guard();
+      if (last_result != STP_RESULT_OK) { break; }
+      /* The shutter correction this sensor calls a flat-field correction is
+       * the same operation the specification calls a NUC. */
+      if (lepton_capture_run_ffc() != 0) {
+        last_result = STP_RESULT_CAMERA_FAULT;
+      } else {
+        ++thermal_nuc_count;
+      }
+      break;
+    case STP_CMD_THERMAL_SPOT:
+      last_result = thermal_guard();
+      if (last_result != STP_RESULT_OK) { break; }
+      thermal_spot_x = arg_u16(payload, 0U);
+      thermal_spot_y = arg_u16(payload, 2U);
+      thermal_spot_w = arg_u16(payload, 4U);
+      thermal_spot_h = arg_u16(payload, 6U);
+      thermal_measure_spot();
+      if (!thermal_spot_valid) {
+        last_result = STP_RESULT_BAD_PARAM;
+      }
+      break;
     default:
-      /* Unknown command: still acknowledged, but nothing is done. */
+      last_result = STP_RESULT_UNKNOWN_COMMAND;
       return;
   }
   ++current.commands_executed;
@@ -660,13 +941,16 @@ static void handle_packet(const stp_rx_packet_t *packet) {
     case STP_RX_COMMAND:
       ++current.commands_received;
       if (packet->payload != NULL) {
-        execute_command(packet->payload[0]);
+        execute_command(packet->payload[0], packet->payload);
       }
-      pending_ack = true;
+      /* Acknowledged only by the camera the command belongs to, which after a
+       * SELECT_CAMERA is the one just chosen. Every other camera stays off the
+       * bus, so the acknowledgement cannot collide. */
+      pending_ack = camera_is_selected();
       break;
     case STP_RX_LRT_REQUEST:
       ++current.lrt_requests;
-      pending_lrt = true;
+      pending_lrt = camera_is_selected();
       break;
     case STP_RX_HRT_GO:
       current.hrt_enabled = true;

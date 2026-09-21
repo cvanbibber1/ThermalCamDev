@@ -25,6 +25,9 @@ typedef struct {
    * then left alone until deliberately re-zeroed. */
   int32_t dosimeter_zero_uv;
   uint8_t node_address;
+  /* Which camera this is within the experiment. Every camera on the bus shares
+   * the Target ID, so this is the only thing that tells them apart. */
+  uint8_t camera_index;
 } settings_t;
 
 void settings_init(void);
@@ -39,3 +42,4 @@ uint32_t settings_save_count(void);
  * which case no flash write is scheduled. */
 bool settings_set_dosimeter_zero(int32_t microvolts);
 bool settings_set_node_address(uint8_t address);
+bool settings_set_camera_index(uint8_t index);

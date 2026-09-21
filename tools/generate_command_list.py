@@ -61,7 +61,7 @@ DICE_REQUESTS = [
 
 
 EXPERIMENT_COMMANDS = {
-    "RUN_FFC": "Correct the image now; video freezes for about a second",
+    "PING": "Payload liveness. Acknowledged and nothing else; the correction is THERMAL_NUC",
     "TAKE_IMAGE": "Correct, then send exactly one complete frame and stop. Use this when the link is too slow to stream",
     "START_RECORD": "Correct, then stream continuously until stopped",
     "STOP_RECORD": "Stop streaming",
@@ -69,6 +69,21 @@ EXPERIMENT_COMMANDS = {
     "STREAM_OFF": "Stop streaming",
     "DOSIMETER_ZERO": "Measure and store this unit's dosimeter zero",
     "REQUEST_KEYFRAME": "Make the next image self-contained. Send this when a frame fails to decode, rather than waiting for the scheduled keyframe",
+}
+
+# Camera chain, protocol v1.1. Arguments follow the command and flags bytes and
+# are little endian; the hex below shows each with its arguments zeroed, since
+# the values are chosen per call.
+CHAIN_COMMANDS = {
+    "SELECT_CAMERA": ("Point the experiment at one camera. 0xFF selects none. Every camera on the bus shares the Target ID, so this is what singles one out", 0x6D),
+    "CAMERA_LIST": ("Report the camera table in telemetry", 0x6E),
+    "CAMERA_INFO": ("Report this camera's index, kind and selection state", 0x6F),
+    "THERMAL_SET_OUTPUT": ("mode u8, palette u8, depth u8. Mode 0 radiometric, 1 palette, 2 both", 0x74),
+    "THERMAL_SET_RANGE": ("mode u8, low i16, high i16 in centi-degrees C. Mode 0 automatic, 1 manual", 0x75),
+    "THERMAL_SET_EMISSIVITY": ("emissivity u16 in thousandths, reflected i16 in centi-degrees C", 0x76),
+    "THERMAL_NUC": ("Run a non-uniformity correction now; no image for about a second", 0x7C),
+    "THERMAL_SPOT": ("x u16, y u16, w u16, h u16. Returns min, max and mean over the box in telemetry", 0x7D),
+    "THERMAL_SET_PALETTE": ("palette u8. 0 white-hot, 1 black-hot, 2 ironbow, 3 rainbow, 4 arctic", 0x7E),
 }
 
 
@@ -152,6 +167,8 @@ def main() -> int:
     out.append("start and stop a recording, stream, or correct the image.")
     out.append("")
     out.append("```")
+    for name, (_, opcode) in CHAIN_COMMANDS.items():
+        out.append(f"CMD_{name},{hexs(experiment_command(opcode))}")
     for name in EXPERIMENT_COMMANDS:
         key = name.lower().replace("_", "-")
         out.append(f"CMD_{name},{hexs(experiment_command(stp.COMMANDS[key]))}")
@@ -159,6 +176,8 @@ def main() -> int:
     out.append("")
     out.append("| CMD_Name | Id | Corrects first | Meaning |")
     out.append("|---|---|---|---|")
+    for name, (description, opcode) in CHAIN_COMMANDS.items():
+        out.append(f"| `CMD_{name}` | `{opcode:02X}` | - | {description} |")
     for name, description in EXPERIMENT_COMMANDS.items():
         key = name.lower().replace("_", "-")
         corrects = "yes" if name in ("TAKE_IMAGE", "START_RECORD") else "-"

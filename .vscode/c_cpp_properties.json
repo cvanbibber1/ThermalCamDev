@@ -41,6 +41,7 @@
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/STM32F4xx_HAL_Driver/Inc",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/STM32F4xx_HAL_Driver/Src",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/CMSIS/DSP/Include",
+                "C:/Github/ThermalCamDev/.pio/libdeps/target/Unity/src",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/BSP/Components/ampire480272",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/BSP/Components/ampire640480",
                 "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/BSP/Components/Common",
@@ -133,6 +134,7 @@
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/STM32F4xx_HAL_Driver/Inc",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/STM32F4xx_HAL_Driver/Src",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/CMSIS/DSP/Include",
+                    "C:/Github/ThermalCamDev/.pio/libdeps/target/Unity/src",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/BSP/Components/ampire480272",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/BSP/Components/ampire640480",
                     "C:/Users/cvanbibber/.platformio/packages/framework-stm32cubef4/Drivers/BSP/Components/Common",
@@ -191,7 +193,7 @@
                 ]
             },
             "defines": [
-                "PLATFORMIO=60119",
+                "PLATFORMIO=60200",
                 "STM32F4",
                 "STM32F412Cx",
                 "STM32F4xx",
@@ -200,6 +202,7 @@
                 "STM32F412Cx",
                 "USE_HAL_DRIVER",
                 "F_CPU=100000000L",
+                "UNITY_INCLUDE_CONFIG_H",
                 ""
             ],
             "compilerPath": "C:/Users/cvanbibber/.platformio/packages/toolchain-gccarmnoneeabi@1.70201.0/bin/arm-none-eabi-gcc.exe",
