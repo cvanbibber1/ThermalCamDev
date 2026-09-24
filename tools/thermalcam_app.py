@@ -354,6 +354,8 @@ class Rs422Grabber(QtCore.QThread):
         # written by that thread rather than opening a second handle.
         self._outbox: list[bytes] = []
         self._outbox_lock = QtCore.QMutex()
+        self._hrt_go_active = False
+        self._hrt_control_pending: bool | None = None
 
     #: How often to ask the camera for vitals, matching the rate the flight
     #: computer is expected to poll at.
@@ -373,7 +375,11 @@ class Rs422Grabber(QtCore.QThread):
         packet = stp.build_request(codec, self.HRT_REQUESTS[name], self._target)
         self._outbox_lock.lock()
         try:
+            if name == "hrt-go" and self._hrt_go_active:
+                return "HRT GO is already active; send STOP before another GO"
             self._outbox.append(packet)
+            self._hrt_go_active = name == "hrt-go"
+            self._hrt_control_pending = self._hrt_go_active
         finally:
             self._outbox_lock.unlock()
         return f"sent {name} over RS-422"
@@ -436,16 +442,16 @@ class Rs422Grabber(QtCore.QThread):
 
             self.status.emit("connected")
             self.reconnected.emit()
-            # Ask the camera to stream. It does not do so on its own after a
-            # stop, so without this the window opens on a black frame and stays
-            # there, with nothing on screen to explain why. Sent on every
-            # reconnect too, since a camera that reset came back idle.
             # Every camera on the bus answers to the same Target ID, so one
             # has to be singled out before anything will reply. Selection does
             # not survive a reset, which is why this is sent on every connect
             # rather than assumed.
-            self.send_command("select-camera", args=bytes([self._camera]))
-            self.send_command("stream-on")
+            # The bus-level switch, which the visual payload ignores: it
+            # moves the right to transmit without reconfiguring anything
+            # else on the bus.
+            self.send_command("bus-select-camera", args=bytes([self._camera]))
+            # HRT GO and capture/stream start are explicit separate controls.
+            # Never restart a stopped stream on reconnect.
             # Vitals are answers, not announcements: flight firmware sends them
             # only when asked. Without this the dosimeter and status panels sit
             # empty with nothing on screen to say why.
@@ -489,9 +495,16 @@ class Rs422Grabber(QtCore.QThread):
                         if packet[5] != self._target:
                             continue
                         if size == stp.LRT_DATA_SIZE:
-                            self.vitals_ready.emit(
-                                stp.decode_lrt(codec, packet[6:6 + 1248])
-                            )
+                            vitals = stp.decode_lrt(codec, packet[6:6 + 1248])
+                            self._outbox_lock.lock()
+                            try:
+                                gate = bool(vitals.get("hrt_go_active"))
+                                if self._hrt_control_pending is None or gate == self._hrt_control_pending:
+                                    self._hrt_go_active = gate
+                                    self._hrt_control_pending = None
+                            finally:
+                                self._outbox_lock.unlock()
+                            self.vitals_ready.emit(vitals)
                         elif size == stp.HRT_DATA_SIZE:
                             frame = assembler.push(codec, packet[6:6 + 1280])
                             # One lost packet otherwise blanks the picture
@@ -776,10 +789,18 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._source == "rs422":
             hrt_group = QtWidgets.QGroupBox("Image stream (HRT)")
             hrt = QtWidgets.QVBoxLayout(hrt_group)
-            start = QtWidgets.QPushButton("Start stream (HRT GO, 0x87)")
-            start.setToolTip("Type 0x87. Tells the camera it may send images.")
+            start = QtWidgets.QPushButton("HRT GO (0x87)")
+            start.setToolTip("Opens the HRT gate; send capture or stream start separately.")
             start.clicked.connect(lambda: self.on_hrt("hrt-go"))
             hrt.addWidget(start)
+            capture = QtWidgets.QPushButton("Capture image (0x30)")
+            capture.clicked.connect(lambda: self.statusBar().showMessage(
+                self.grabber.send_command("capture-image"), 4000))
+            hrt.addWidget(capture)
+            stream = QtWidgets.QPushButton("Start stream (0x78)")
+            stream.clicked.connect(lambda: self.statusBar().showMessage(
+                self.grabber.send_command("stream-start"), 4000))
+            hrt.addWidget(stream)
             stop = QtWidgets.QPushButton("Stop stream (HRT STOP, 0x85)")
             stop.setToolTip("Type 0x85. Stops the image stream cleanly.")
             stop.clicked.connect(lambda: self.on_hrt("hrt-stop"))

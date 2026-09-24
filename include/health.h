@@ -48,6 +48,9 @@ typedef struct {
   /* Keyframes the ground asked for after losing its reference. A high rate
    * here means packets are being lost, not that the codec is misbehaving. */
   uint32_t codec_keyframes_requested;
+  /* Commands whose own CRC failed. A host using the wrong payload layout
+   * shows up here rather than as commands that half worked. */
+  uint32_t command_crc_errors;
 } health_counters_t;
 
 extern health_counters_t g_health;

@@ -1,0 +1,67 @@
+{
+  "port": "COM56",
+  "checks": {
+    "layout3_thermal_selected": true,
+    "gate_open_after_visual_stop": true,
+    "no_go_one_complete_still": true,
+    "zero_go_before_still": true,
+    "one_go_multiple_complete_frames": true,
+    "stop_result_ok": true,
+    "gate_closed_after_stop": true,
+    "exactly_one_go_after_explicit_stop": true,
+    "zero_outer_crc": true
+  },
+  "stats": {
+    "bad_outer_crc": 0,
+    "bad_packets": [],
+    "go_requests": 1,
+    "hrt_packets": 368,
+    "lrt_packets": 5
+  },
+  "identity": {
+    "layout": 3,
+    "node_index": 1,
+    "bus_owner": 1,
+    "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+    "build_source_sha256": "6d9a1b381defe83822edb0a2fe4bb9c17915c82b11c84bf00f6a83baba050cce"
+  },
+  "still": {
+    "command_result": "ok",
+    "hrt_packets": 14,
+    "frame_lengths": [
+      38400
+    ]
+  },
+  "stream": {
+    "command_result": "ok",
+    "hrt_packets": 292,
+    "frame_lengths": [
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400
+    ]
+  }
+}

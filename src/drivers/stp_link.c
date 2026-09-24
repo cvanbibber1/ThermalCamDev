@@ -4,8 +4,11 @@
 #include "board.h"
 #include "dosimeter.h"
 #include "health.h"
+#include "generated/build_identity.h"
 #include "lepton_capture.h"
+#include "protocol/crc.h"
 #include "protocol/frame_codec.h"
+#include "protocol/hrt_gate.h"
 #include "protocol/stp_protocol.h"
 #include "settings.h"
 
@@ -58,11 +61,14 @@ static uint16_t hrt_total_chunks;
 static size_t hrt_length;
 static uint32_t last_lrt_ms;
 static uint32_t last_hrt_ms;
+/* A single GO opens the data tap; STOP or loss of bus ownership closes it. */
+static hrt_gate_t hrt_gate;
 /* Replies owed to DICE. A request can arrive while an image packet is going
  * out, and the transmitter cannot be interrupted; without these the reply
  * would simply be dropped and the request would look ignored. */
 static bool pending_ack;
 static bool pending_lrt;
+static bool capture_stop_pending;
 /* Capture sequencing. A capture always corrects the image first, so the frame
  * that goes down is not the drifted one that prompted the request. */
 static uint32_t correcting_until_ms;
@@ -71,21 +77,26 @@ static uint8_t pending_capture_target;
 
 /* ---------------------------------------------------- camera selection -- */
 
-/* Which camera is selected across the whole experiment, and which one this is.
+/* Bus ownership is independent of local sensor routing. This board has one
+ * fixed Lepton, so SELECT_CAMERA can only select index 0 or disable it.
  *
  * Every camera on the bus shares the Target ID, so all of them receive every
  * packet and exactly one may answer. A camera that is not selected processes
- * commands only far enough to notice SELECT_CAMERA, and transmits nothing at
+ * commands only far enough to notice BUS_SELECT_CAMERA, and transmits nothing at
  * all: two drivers on one pair would corrupt each other's packets.
  *
  * Selection is deliberately not persisted. A reset leaves the bus quiet rather
  * than restoring a camera that may no longer be the one the ground wants. */
-static uint8_t camera_selected = STP_CAMERA_NONE;
+static uint8_t bus_selected = STP_CAMERA_NONE;
+static uint8_t sensor_selected = 0U;
 static uint8_t camera_index = APP_CAMERA_INDEX_DEFAULT;
 static uint32_t camera_selections;
 static uint32_t camera_select_failures;
 static uint8_t last_command;
 static uint8_t last_result;
+static uint16_t last_command_seq;
+static uint16_t last_command_crc;
+static bool last_command_valid;
 
 /* Thermal state. These affect what is reported and how the ground renders,
  * never the raw sensor counts, so a capture taken with the wrong emissivity is
@@ -102,7 +113,7 @@ static bool thermal_spot_valid;
 static int16_t thermal_spot_min_cc, thermal_spot_max_cc, thermal_spot_mean_cc;
 static uint8_t thermal_nuc_count;
 
-static bool camera_is_selected(void) { return camera_selected == camera_index; }
+static bool camera_is_selected(void) { return bus_selected == camera_index; }
 
 /* Encoded frames waiting to go out, and the frame they were coded against.
  *
@@ -331,7 +342,6 @@ static void codec_task(void) {
   encode_begin(frame, generation, false);
 }
 
-/* Abandon everything in flight, releasing the pin so capture is not stalled. */
 static void codec_reset(void) {
   lepton_capture_hold_for_codec(false);
   codec_encoding = -1;
@@ -346,6 +356,29 @@ static void codec_reset(void) {
   codec_reference_valid = false;
 }
 #endif
+
+static void stop_capture(void);
+
+static void stop_capture_after_current_packet(void) {
+  if (current.transmitting) {
+    capture_stop_pending = true;
+  } else {
+    stop_capture();
+  }
+}
+
+/* Drop work owed by the former owner. An active DMA packet must reach the
+ * UART's transmission-complete interrupt before DE falls: aborting it here
+ * can cut off its final stop bit. The host must allow that packet to finish
+ * before granting another node a transmit slot. */
+static void go_silent(void) {
+  pending_ack = false;
+  pending_lrt = false;
+  stop_capture_after_current_packet();
+  if (!current.transmitting) {
+    board_rs485_de(false);
+  }
+}
 
 static bool begin_transmit(size_t length) {
   /* The one place every packet passes through, so the one place worth
@@ -383,7 +416,10 @@ bool stp_link_init(void) {
   if (camera_index >= STP_CAMERA_MAX) {
     camera_index = APP_CAMERA_INDEX_DEFAULT;
   }
-  camera_selected = APP_CAMERA_BOOT_SELECTED ? camera_index : STP_CAMERA_NONE;
+  bus_selected = APP_CAMERA_BOOT_SELECTED ? camera_index : STP_CAMERA_NONE;
+  sensor_selected = 0U;
+  hrt_gate_init(&hrt_gate);
+  last_command_valid = false;
   /* Bench builds start streaming; flight waits to be told. Either way the
    * flag is what the task loop obeys, so stop always works. */
   current.hrt_enabled = (STP_BENCH_FREERUN != 0);
@@ -391,6 +427,7 @@ bool stp_link_init(void) {
                                                       : STP_CAPTURE_IDLE);
   pending_ack = false;
   pending_lrt = false;
+  capture_stop_pending = false;
   burst_active = false;
 #if APP_CODEC_ENABLED
   codec_reset();
@@ -461,7 +498,8 @@ static size_t build_lrt_payload(uint8_t *out, size_t capacity) {
     for (size_t index = 1U; index < APP_FRAME_PIXELS; ++index) {
       if (frame[index] < minimum) {
         minimum = frame[index];
-      } else if (frame[index] > maximum) {
+      }
+      if (frame[index] > maximum) {
         maximum = frame[index];
       }
     }
@@ -478,8 +516,8 @@ static size_t build_lrt_payload(uint8_t *out, size_t capacity) {
    * no event ring and 1056 bytes spare, so nothing has to be given up.
    */
   out[192] = camera_index;
-  out[193] = camera_selected;
-  out[194] = 1U;                       /* cameras this unit speaks for */
+  out[193] = bus_selected;
+  out[194] = 1U;                       /* local node identity count */
   out[195] = (uint8_t)((camera_is_selected() ? 1U : 0U) |
                        ((APP_CAMERA_KIND == STP_CAMERA_KIND_THERMAL) ? 2U : 0U));
   put_u32(&out[196], camera_selections);
@@ -511,6 +549,7 @@ static size_t build_lrt_payload(uint8_t *out, size_t capacity) {
       }
     }
     if (thermal_spot_valid) {
+      flags |= 16U;                    /* spot statistics valid */
       put_u16(&out[208], (uint16_t)thermal_spot_mean_cc);
       put_u16(&out[210], (uint16_t)thermal_spot_min_cc);
       put_u16(&out[212], (uint16_t)thermal_spot_max_cc);
@@ -525,10 +564,45 @@ static size_t build_lrt_payload(uint8_t *out, size_t capacity) {
     put_u16(&out[228], (uint16_t)thermal_range_high_cc);
   }
 
+  /* V3 extension: command completion is correlated by sequence. CRC covers
+   * the extension itself; the packet also has its envelope CRC. */
+  out[232] = STP_LRT_LAYOUT_VERSION;
+  out[233] = camera_index;
+  out[234] = APP_CAMERA_KIND;
+  out[235] = bus_selected;
+  out[236] = sensor_selected;
+  out[237] = current.capture_state;
+  out[238] = current.hrt_enabled ? 1U : 0U;
+  out[239] = last_command_valid ? 1U : 0U;
+  put_u32(&out[240], camera.frame_generation);
+  put_u16(&out[244], hrt_gate.open ? 1U : 0U);
+  put_u16(&out[246], last_command_seq);
+  out[248] = last_command;
+  out[249] = last_result;
+  put_u16(&out[250], hrt_chunk);
+  put_u16(&out[252], 0U); /* no inline response data for this node */
+  put_u16(&out[254], crc16_ccitt(&out[232], 22U, STP_CRC16_SEED));
+  put_u32(&out[256], g_health.command_crc_errors);
+  put_u16(&out[260], thermal_spot_x);
+  put_u16(&out[262], thermal_spot_y);
+  put_u16(&out[264], thermal_spot_w);
+  put_u16(&out[266], thermal_spot_h);
+
+  /* Layout-2 identity/availability extension. Zero availability is explicit:
+   * this MCU has no CPU-load, device storage, or safe-mode measurement. */
+  out[268] = 1U;
+  out[269] = 0x0FU; /* build, thermal counters, reset, fault fields valid */
+  out[270] = 0U;    /* CPU-load, storage, safe-mode fields unavailable */
+  memcpy(&out[272], build_commit_bytes, sizeof(build_commit_bytes));
+  memcpy(&out[292], build_source_bytes, sizeof(build_source_bytes));
+  put_u16(&out[324], crc16_ccitt(&out[268], 56U, STP_CRC16_SEED));
+
   /* The whole health block, so a ground operator sees the same counters the
    * development tooling shows. */
   const uint32_t *counters = (const uint32_t *)&g_health;
-  size_t count = sizeof(g_health) / sizeof(uint32_t);
+  /* Keep the legacy health area at 64..191: newly added counters live in the
+   * V2 extension so they cannot overwrite camera identity at 192. */
+  size_t count = 32U;
   for (size_t index = 0U; index < count; ++index) {
     put_u32(&out[64U + (index * 4U)], counters[index]);
   }
@@ -679,8 +753,13 @@ static bool send_hrt(void) {
 
 /* Begin a capture by correcting the image first. The stream stays off until
  * the shutter has finished and the first frames after it have settled. */
-static void begin_corrected_capture(stp_capture_state_t target) {
-  (void)lepton_capture_run_ffc();
+static bool begin_corrected_capture(stp_capture_state_t target) {
+  /* A new capture is an independent image sequence. Discard queued frames and
+   * the previous codec reference so its first HRT frame is a keyframe. */
+  stop_capture();
+  if (lepton_capture_run_ffc() != 0) {
+    return false;
+  }
   correcting_until_ms = HAL_GetTick() + APP_LEPTON_FFC_SETTLE_MS;
   current.capture_state = (uint8_t)STP_CAPTURE_CORRECTING;
   current.hrt_enabled = false;
@@ -688,9 +767,11 @@ static void begin_corrected_capture(stp_capture_state_t target) {
   hrt_chunk = 0U;
   /* Remembered so the settle timer knows what to start. */
   pending_capture_target = (uint8_t)target;
+  return true;
 }
 
 static void stop_capture(void) {
+  capture_stop_pending = false;
   current.hrt_enabled = false;
   burst_active = false;
   correcting_until_ms = 0U;
@@ -703,13 +784,13 @@ static void stop_capture(void) {
 #endif
 }
 
-/* Arguments start after the command byte and the flags byte. Little endian,
+/* Arguments start after the V3 command header. Little endian,
  * matching the camera-chain specification; the packet envelope around them is
  * big endian, which is why these are unpacked by hand rather than with the
  * envelope helpers. */
 static uint16_t arg_u16(const uint8_t *payload, size_t offset) {
-  return (uint16_t)((uint16_t)payload[2U + offset] |
-                    ((uint16_t)payload[3U + offset] << 8));
+  return (uint16_t)((uint16_t)payload[STP_CMD_ARGS_OFFSET + offset] |
+                    ((uint16_t)payload[STP_CMD_ARGS_OFFSET + offset + 1U] << 8));
 }
 
 static int16_t arg_i16(const uint8_t *payload, size_t offset) {
@@ -717,24 +798,86 @@ static int16_t arg_i16(const uint8_t *payload, size_t offset) {
 }
 
 static uint8_t arg_u8(const uint8_t *payload, size_t offset) {
-  return payload[2U + offset];
+  return payload[STP_CMD_ARGS_OFFSET + offset];
 }
 
-/* Point the whole experiment at one camera.
+/* Check the command's own CRC before acting on any of it.
+ *
+ * The envelope was already checked, so this catches the cases that one
+ * cannot: a host encoding a different payload layout, and corruption between
+ * the envelope check and here. Rejecting is much better than obeying a
+ * command whose arguments are wrong -- a mis-decoded SELECT_CAMERA would
+ * hand the bus to a camera nobody asked for. */
+static bool command_crc_ok(const uint8_t *payload) {
+  uint8_t length = payload[STP_CMD_ARGLEN_OFFSET];
+  if (length > STP_CMD_ARGS_MAX) {
+    return false;
+  }
+  uint16_t stored = (uint16_t)(((uint16_t)payload[STP_CMD_CRC_OFFSET] << 8) |
+                               payload[STP_CMD_CRC_OFFSET + 1U]);
+  /* Covers the five header bytes and the arguments, but not the padding. */
+  uint16_t computed = crc16_ccitt(payload, STP_CMD_CRC_OFFSET, STP_CRC16_SEED);
+  computed = crc16_ccitt(&payload[STP_CMD_ARGS_OFFSET], length, computed);
+  return computed == stored;
+}
+
+/* Exact V3 argument lengths prevent truncated commands from reading padding
+ * as live parameters and reject extra bytes that would have no effect. */
+static int command_arg_length(uint8_t command) {
+  switch (command) {
+    case STP_CMD_SELECT_CAMERA:
+    case STP_CMD_BUS_SELECT_CAMERA:
+    case STP_CMD_SLOT_INFO:
+    case STP_CMD_SLOT_CAPTURE_IMAGE:
+    case STP_CMD_SLOT_DOWNLOAD:
+    case STP_CMD_SLOT_DELETE:
+    case STP_CMD_SLOT_DOWNLOAD_ABORT:
+    case STP_CMD_THERMAL_SET_PALETTE: return 1;
+    case STP_CMD_CAMERA_LIST:
+    case STP_CMD_SLOT_LIST: return 2;
+    case STP_CMD_THERMAL_SET_OUTPUT: return 3;
+    case STP_CMD_THERMAL_SET_EMISSIVITY: return 4;
+    case STP_CMD_THERMAL_SET_RANGE: return 5;
+    case STP_CMD_THERMAL_SPOT: return 8;
+    case STP_CMD_SLOT_RECORD_START: return 3;
+    case STP_CMD_REQUEST_MEDIA: return 4;
+    case STP_CMD_PING:
+    case STP_CMD_TAKE_IMAGE:
+    case STP_CMD_START_RECORD:
+    case STP_CMD_STOP_RECORD:
+    case STP_CMD_STREAM_ON:
+    case STP_CMD_STREAM_OFF:
+    case STP_CMD_DOSIMETER_ZERO:
+    case STP_CMD_REQUEST_KEYFRAME:
+    case STP_CMD_CAMERA_INFO:
+    case STP_CMD_CAPTURE_IMAGE:
+    case STP_CMD_COMMON_START_RECORD:
+    case STP_CMD_COMMON_STOP_RECORD:
+    case STP_CMD_SLOT_RECORD_STOP:
+    case STP_CMD_SLOT_DELETE_ALL:
+    case STP_CMD_GET_MEDIA_LIST:
+    case STP_CMD_STREAM_START:
+    case STP_CMD_STREAM_STOP:
+    case STP_CMD_THERMAL_NUC: return 0;
+    default: return -1;
+  }
+}
+
+/* Point bus ownership at one camera.
  *
  * Every camera runs this, and each decides for itself whether it is the one
  * named. The camera being deselected stops first, because a stream or a
  * recording points at hardware that is about to stop being listened to. */
-static uint8_t select_camera(uint8_t index) {
+static uint8_t select_bus_camera(uint8_t index) {
   if ((index != STP_CAMERA_NONE) && (index >= STP_CAMERA_MAX)) {
     ++camera_select_failures;
     return STP_RESULT_BAD_PARAM;
   }
   bool was_selected = camera_is_selected();
-  camera_selected = index;
+  bus_selected = index;
   if (was_selected && !camera_is_selected()) {
     /* Switching away is destructive to work in progress, by design. */
-    stop_capture();
+    go_silent();
   }
   if (camera_is_selected()) {
     ++camera_selections;
@@ -743,13 +886,23 @@ static uint8_t select_camera(uint8_t index) {
 }
 
 static uint8_t thermal_guard(void) {
-  if (camera_selected == STP_CAMERA_NONE) {
+  if (!camera_is_selected()) {
+    return STP_RESULT_NOT_SELECTED;
+  }
+  if (sensor_selected == STP_CAMERA_NONE) {
     return STP_RESULT_CAMERA_FAULT;
   }
   if (APP_CAMERA_KIND != STP_CAMERA_KIND_THERMAL) {
     return STP_RESULT_BAD_TYPE;
   }
   return STP_RESULT_OK;
+}
+
+static uint8_t capture_guard(void) {
+  if (sensor_selected == STP_CAMERA_NONE) {
+    return STP_RESULT_CAMERA_FAULT;
+  }
+  return hrt_gate.open ? STP_RESULT_OK : STP_RESULT_HRT_STOPPED;
 }
 
 /* Measure a box, in centi-degrees Celsius. The sensor reports centikelvin, so
@@ -786,40 +939,99 @@ static void thermal_measure_spot(void) {
   thermal_spot_valid = true;
 }
 
-static void execute_command(uint8_t command, const uint8_t *payload) {
+static bool execute_command(uint8_t command, const uint8_t *payload) {
+  uint16_t sequence = (uint16_t)(((uint16_t)payload[STP_CMD_SEQ_OFFSET] << 8) |
+                                 payload[STP_CMD_SEQ_OFFSET + 1U]);
+  uint16_t inner_crc = (uint16_t)(((uint16_t)payload[STP_CMD_CRC_OFFSET] << 8) |
+                                   payload[STP_CMD_CRC_OFFSET + 1U]);
+  if (!command_crc_ok(payload)) {
+    if (camera_is_selected()) {
+      last_command = command;
+      last_command_seq = sequence;
+      last_command_crc = inner_crc;
+      last_result = STP_RESULT_BAD_PARAM;
+      last_command_valid = true;
+    }
+    health_increment(&g_health.command_crc_errors);
+    return false;
+  }
+  int expected = command_arg_length(command);
+  if ((expected >= 0) && (payload[STP_CMD_ARGLEN_OFFSET] != (uint8_t)expected)) {
+    if (camera_is_selected()) {
+      last_command = command;
+      last_command_seq = sequence;
+      last_command_crc = inner_crc;
+      last_result = STP_RESULT_BAD_PARAM;
+      last_command_valid = true;
+    }
+    return false;
+  }
+  /* A repeated sequence is a retransmission, not another capture/FFC. */
+  if (last_command_valid && camera_is_selected() &&
+      (last_command_seq == sequence) && (last_command == command) &&
+      (last_command_crc == inner_crc) && (last_result != STP_RESULT_BAD_PARAM)) {
+    return true;
+  }
   last_command = command;
+  last_command_seq = sequence;
+  last_command_crc = inner_crc;
   last_result = STP_RESULT_OK;
+  last_command_valid = true;
 
-  /* SELECT_CAMERA is the one command every camera must act on whether or not
-   * it is the selected one; that is how selection moves. */
-  if (command == STP_CMD_SELECT_CAMERA) {
-    last_result = select_camera(arg_u8(payload, 0U));
-    return;
+  /* Every node processes ownership, including nodes currently silent. Only
+   * the newly selected node may acknowledge the move. */
+  if (command == STP_CMD_BUS_SELECT_CAMERA) {
+    last_result = select_bus_camera(arg_u8(payload, 0U));
+    return true;
   }
   /* Everything else belongs to whichever camera is selected. A camera that is
    * not selected does nothing and, more importantly, says nothing. */
   if (!camera_is_selected()) {
     last_result = STP_RESULT_NOT_SELECTED;
-    return;
+    return true;
   }
 
   switch (command) {
+    case STP_CMD_SELECT_CAMERA: {
+      uint8_t sensor = arg_u8(payload, 0U);
+      if ((sensor != 0U) && (sensor != STP_CAMERA_NONE)) {
+        last_result = STP_RESULT_BAD_PARAM;
+      } else {
+        sensor_selected = sensor;
+        if (sensor == STP_CAMERA_NONE) { stop_capture(); }
+      }
+      break;
+    }
     case STP_CMD_PING:
       /* Liveness only. The acknowledgement is the whole answer. */
       break;
     case STP_CMD_TAKE_IMAGE:
-      begin_corrected_capture(STP_CAPTURE_SINGLE);
+    case STP_CMD_CAPTURE_IMAGE:
+      last_result = capture_guard();
+      if (last_result != STP_RESULT_OK) { break; }
+      if (!begin_corrected_capture(STP_CAPTURE_SINGLE)) {
+        last_result = STP_RESULT_CAMERA_FAULT;
+      }
       break;
     case STP_CMD_START_RECORD:
-      begin_corrected_capture(STP_CAPTURE_RECORDING);
+      last_result = capture_guard();
+      if (last_result != STP_RESULT_OK) { break; }
+      if (!begin_corrected_capture(STP_CAPTURE_RECORDING)) {
+        last_result = STP_RESULT_CAMERA_FAULT;
+      }
       break;
     case STP_CMD_STOP_RECORD:
     case STP_CMD_STREAM_OFF:
+    case STP_CMD_STREAM_STOP:
       stop_capture();
       break;
     case STP_CMD_STREAM_ON:
+    case STP_CMD_STREAM_START:
+      last_result = capture_guard();
+      if (last_result != STP_RESULT_OK) { break; }
       /* Deliberately no correction: the caller is asking for the image as it
        * stands, which is what you want when it is already settled. */
+      stop_capture();
       burst_active = false;
       correcting_until_ms = 0U;
       current.hrt_enabled = true;
@@ -838,17 +1050,41 @@ static void execute_command(uint8_t command, const uint8_t *payload) {
 #endif
       break;
     case STP_CMD_CAMERA_LIST:
+      last_result = STP_RESULT_UNSUPPORTED;
+      break;
     case STP_CMD_CAMERA_INFO:
       /* Answered through telemetry rather than a reply packet: the
        * acknowledgement has no room, and the camera block is polled anyway. */
+      break;
+    case STP_CMD_COMMON_START_RECORD:
+    case STP_CMD_COMMON_STOP_RECORD:
+    case STP_CMD_SLOT_LIST:
+    case STP_CMD_SLOT_INFO:
+    case STP_CMD_SLOT_CAPTURE_IMAGE:
+    case STP_CMD_SLOT_RECORD_START:
+    case STP_CMD_SLOT_RECORD_STOP:
+    case STP_CMD_SLOT_DOWNLOAD:
+    case STP_CMD_SLOT_DELETE:
+    case STP_CMD_SLOT_DELETE_ALL:
+    case STP_CMD_SLOT_DOWNLOAD_ABORT:
+    case STP_CMD_REQUEST_MEDIA:
+    case STP_CMD_GET_MEDIA_LIST:
+      last_result = STP_RESULT_UNSUPPORTED;
       break;
     case STP_CMD_THERMAL_SET_OUTPUT: {
       last_result = thermal_guard();
       if (last_result != STP_RESULT_OK) { break; }
       uint8_t mode = arg_u8(payload, 0U);
       uint8_t palette = arg_u8(payload, 1U);
-      if ((mode > STP_THERMAL_OUTPUT_BOTH) || (palette >= STP_PALETTE_COUNT)) {
+      if ((mode > STP_THERMAL_OUTPUT_BOTH) || (palette >= STP_PALETTE_COUNT) ||
+          (arg_u8(payload, 2U) != 16U)) {
         last_result = STP_RESULT_BAD_PARAM;
+        break;
+      }
+      /* The HRT builder emits radiometric uint16 only. Never advertise a
+       * palette stream until that wire format is implemented. */
+      if (mode != STP_THERMAL_OUTPUT_RADIOMETRIC) {
+        last_result = STP_RESULT_UNSUPPORTED;
         break;
       }
       thermal_output_mode = mode;
@@ -898,29 +1134,51 @@ static void execute_command(uint8_t command, const uint8_t *payload) {
       if (last_result != STP_RESULT_OK) { break; }
       /* The shutter correction this sensor calls a flat-field correction is
        * the same operation the specification calls a NUC. */
+      {
+      bool resume = current.hrt_enabled ||
+                    current.capture_state == (uint8_t)STP_CAPTURE_CORRECTING;
+      stop_capture();
       if (lepton_capture_run_ffc() != 0) {
         last_result = STP_RESULT_CAMERA_FAULT;
       } else {
         ++thermal_nuc_count;
+        if (resume) {
+          correcting_until_ms = HAL_GetTick() + APP_LEPTON_FFC_SETTLE_MS;
+          pending_capture_target = (uint8_t)STP_CAPTURE_RECORDING;
+          current.capture_state = (uint8_t)STP_CAPTURE_CORRECTING;
+        }
+      }
       }
       break;
     case STP_CMD_THERMAL_SPOT:
       last_result = thermal_guard();
       if (last_result != STP_RESULT_OK) { break; }
-      thermal_spot_x = arg_u16(payload, 0U);
-      thermal_spot_y = arg_u16(payload, 2U);
-      thermal_spot_w = arg_u16(payload, 4U);
-      thermal_spot_h = arg_u16(payload, 6U);
-      thermal_measure_spot();
-      if (!thermal_spot_valid) {
+      {
+      uint16_t x = arg_u16(payload, 0U), y = arg_u16(payload, 2U);
+      uint16_t w = arg_u16(payload, 4U), h = arg_u16(payload, 6U);
+      if ((w == 0U) || (h == 0U) || (x >= APP_FRAME_WIDTH) ||
+          (y >= APP_FRAME_HEIGHT)) {
         last_result = STP_RESULT_BAD_PARAM;
+        break;
+      }
+      uint32_t spot_generation = 0U;
+      if (lepton_capture_latest_frame(&spot_generation) == NULL) {
+        last_result = STP_RESULT_CAMERA_FAULT;
+        break;
+      }
+      thermal_spot_x = x;
+      thermal_spot_y = y;
+      thermal_spot_w = (w > APP_FRAME_WIDTH - x) ? APP_FRAME_WIDTH - x : w;
+      thermal_spot_h = (h > APP_FRAME_HEIGHT - y) ? APP_FRAME_HEIGHT - y : h;
+      thermal_measure_spot();
       }
       break;
     default:
       last_result = STP_RESULT_UNKNOWN_COMMAND;
-      return;
+      return true;
   }
   ++current.commands_executed;
+  return true;
 }
 
 /* ------------------------------------------------------------ receiving -- */
@@ -940,27 +1198,33 @@ static void handle_packet(const stp_rx_packet_t *packet) {
   switch (packet->kind) {
     case STP_RX_COMMAND:
       ++current.commands_received;
+      {
+      bool valid = false;
       if (packet->payload != NULL) {
-        execute_command(packet->payload[0], packet->payload);
+        valid = execute_command(packet->payload[0], packet->payload);
       }
-      /* Acknowledged only by the camera the command belongs to, which after a
-       * SELECT_CAMERA is the one just chosen. Every other camera stays off the
-       * bus, so the acknowledgement cannot collide. */
-      pending_ack = camera_is_selected();
+      /* Acknowledged only by the bus owner. After BUS_SELECT_CAMERA this is
+       * the newly chosen node; every other node has dropped queued replies. */
+      pending_ack = valid && camera_is_selected();
+      }
       break;
     case STP_RX_LRT_REQUEST:
       ++current.lrt_requests;
       pending_lrt = camera_is_selected();
       break;
     case STP_RX_HRT_GO:
-      current.hrt_enabled = true;
-      current.capture_state = (uint8_t)STP_CAPTURE_RECORDING;
+      /* GO opens the tap. Capture is a separate subsequent command. */
+      if (camera_is_selected()) {
+        hrt_gate_go(&hrt_gate);
+      }
       break;
     case STP_RX_HRT_STOP:
     case STP_RX_HRT_STOP_WITH_LOSS:
-      /* Restart at a frame boundary when it resumes. Stop with loss differs
-       * only in that DICE expects the gap, so both are handled alike here. */
-      stop_capture();
+      if (camera_is_selected()) {
+        hrt_gate_stop(&hrt_gate);
+        /* Restart at a frame boundary when GO resumes the tap. */
+        stop_capture_after_current_packet();
+      }
       break;
     default:
       break;
@@ -991,6 +1255,10 @@ void stp_link_task(void) {
 
   if (current.transmitting) {
     return;
+  }
+  if (capture_stop_pending) {
+    capture_stop_pending = false;
+    stop_capture();
   }
   uint32_t now = HAL_GetTick();
 
@@ -1033,7 +1301,8 @@ void stp_link_task(void) {
 #else
   bool image_ready = true;
 #endif
-  if (current.hrt_enabled && image_ready &&
+  if (hrt_gate_can_send(&hrt_gate, camera_is_selected(),
+                        current.hrt_enabled, image_ready) &&
       ((now - last_hrt_ms) >= STP_HRT_MIN_GAP_MS)) {
     last_hrt_ms = now;
     (void)send_hrt();

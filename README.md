@@ -174,8 +174,8 @@ frame instead, degrading to the uncompressed rate rather than failing.
 
 ## The RS-422 wire format
 
-USART2 through an ADM2582E, as an STP/DICE slave. **2,000,000 8N1 on this
-branch**; the flight branch uses 921600. Everything else is identical.
+USART2 through an ADM2582E, as an STP/DICE slave. This checkout builds at
+**921600 8N1** (`APP_RS485_BAUD`); host and device must use the same rate.
 
 | Setting | Value |
 |---|---|
@@ -192,7 +192,7 @@ branch**; the flight branch uses 921600. Everything else is identical.
 | `0x81` | in | 14 | Vitals request; answered with 1256 bytes |
 | `0x85` | in | 14 | Stop the image stream |
 | `0x86` | in | 14 | Stop the image stream, with loss |
-| `0x87` | in | 14 | Start the image stream; data packets are 1288 bytes |
+| `0x87` | in | 14 | Open the HRT tap until STOP; data packets are 1288 bytes |
 
 Transmitted data reuses the request type codes; direction and size distinguish
 them, as the specification warns. Definitions live in
@@ -205,7 +205,7 @@ multi-byte fields are big endian.
 
 | Offset | Size | Field |
 |---:|---:|---|
-| 0 | 4 | Layout version, currently 1 |
+| 0 | 4 | Layout version, currently 2 |
 | 4 | 4 | Camera uptime, milliseconds |
 | 8 | 4 | Coarse time, echoed from the last packet DICE sent |
 | 12 | 2 | Fine time, echoed back |
@@ -229,8 +229,12 @@ multi-byte fields are big endian.
 | 60 | 1 | Shutter mode: 0 manual, 1 auto, 2 external |
 | 61 | 1 | Capture state: 0 idle, 1 correcting, 2 sending one image, 3 recording |
 | 62 | 2 | Images sent in response to a single-image request |
-| 64 | 112 | Twenty-eight 32-bit health counters, in the order below |
-| 176 | 1072 | Zero padding |
+| 64 | 128 | First 32 health counters, in the order below |
+| 192 | 38 | Node identity and thermal settings; see `tools/stp_monitor.py` |
+| 232 | 22 | V2 command and ownership block |
+| 254 | 2 | CRC-16/CCITT-FALSE over bytes 232..253 |
+| 256 | 4 | Command inner-CRC error count |
+| 260 | 8 | Effective spot rectangle: x, y, width, height as big-endian u16 |
 
 The counters at offset 64, four bytes each, in this order: reset cause, fatal
 code, clock failures, camera boot failures, sensor errors, forced corrections,
@@ -243,9 +247,41 @@ transmit busy, frames sent uncompressed, keyframes sent, longest compression
 pass in microseconds, image chunks the transmitter asked for before the encoder
 had produced them.
 
-The order is `health_counters_t` in `include/health.h`; the block is written
-straight from the struct, so appending a counter extends it and never moves an
-existing one.
+The first 32 counters keep their original positions. New counters use the
+versioned extension so they cannot overwrite the node identity block.
+
+The V3 block contains: version at 232, node index at 233, kind at 234
+(0 visual, 1 thermal), current bus owner at 235, local sensor at 236, capture
+state at 237, HRT enabled at 238, result-valid flag at 239, frame generation
+at 240..243, persistent HRT GO gate (0/1) at 244..245, command sequence at 246..247, opcode
+at 248, result at 249, current HRT chunk at 250..251, and response length
+at 252..253 (zero until inline response data is defined). Multibyte values
+are big endian. An ACK confirms transport acceptance only; completion requires
+an LRT with the matching sequence and a valid block CRC. Bad command CRC or
+argument length gets no ACK and is reported as BAD_PARAM if this node owns the
+bus. Unknown commands report UNKNOWN_COMMAND; slot and stored media commands
+report UNSUPPORTED on this thermal node.
+
+`BUS_SELECT_CAMERA (0x6F)` moves the RS-422 token. The newly selected node
+alone ACKs; `0xFF` makes all nodes silent. A malformed index leaves the owner
+unchanged and returns BAD_PARAM from the current owner. `SELECT_CAMERA (0x6D)`
+only selects this board's fixed local Lepton sensor (`0`) or disables it
+(`0xFF`); it never changes the bus token. Cold boot is silent. Use
+`BUS_SELECT_CAMERA` before any LRT or thermal action.
+
+The common `CAPTURE_IMAGE (0x30)` emits one ephemeral corrected HRT frame,
+while `STREAM_START (0x78)` and `STREAM_STOP (0x79)` control live HRT output.
+Thermal aliases `0x02`..`0x06` remain accepted. The thermal board has no
+persistent media slots or saved recording; those commands return UNSUPPORTED.
+The HRT tap is closed from boot. HRT GO opens it and cannot start a capture
+by itself. CAPTURE_IMAGE and STREAM_START while closed return HRT_STOPPED
+(result 7), without starting FFC or a stream. A STOP sent while visual owns the bus
+does not close thermal's tap. Bus ownership loss halts capture and transmission
+but preserves the tap state.
+While capture is active, all available HRT packets transmit without another GO.
+HRT STOP closes the tap and stops capture. Output mode 0 emits
+160×120 little-endian uint16 centikelvin pixels; palette output modes return
+UNSUPPORTED until a palette wire format exists.
 
 ### The image payload
 

@@ -34,6 +34,13 @@
 #define STP_COMMAND_SIZE 120U
 #define STP_COMMAND_PAYLOAD_SIZE 105U
 #define STP_COMMAND_PAYLOAD_OFFSET 12U
+/* Offsets within the command payload itself. */
+#define STP_CMD_SEQ_OFFSET 1U
+#define STP_CMD_ARGLEN_OFFSET 3U
+#define STP_CMD_FORCE_OFFSET 4U
+#define STP_CMD_CRC_OFFSET 5U
+#define STP_CMD_ARGS_OFFSET 7U
+#define STP_CMD_ARGS_MAX 98U
 #define STP_REQUEST_SIZE 14U
 /* Every received packet starts with the same 12-byte preamble, so the type at
  * offset 10 can be read before the total length is known. */
@@ -64,20 +71,40 @@
 #define STP_CRC16_SEED 0xFFFFU
 #endif
 
-/* This experiment's assigned Target ID. */
+/* The Target ID of the whole RS-422 setup.
+ *
+ * It names the system, not a device: every camera on this bus answers to
+ * 0xC7, and all of them therefore see every packet. What tells them apart is
+ * the camera index carried inside the command payload.
+ *
+ * The consequence is that exactly one camera may transmit at a time, which is
+ * what BUS_SELECT_CAMERA arbitrates. Two drivers on one pair corrupt each
+ * other's packets and neither side is told why. */
 #ifndef STP_DEFAULT_TARGET_ID
 #define STP_DEFAULT_TARGET_ID 0xC7U
 #endif
 
 /* -------------------------------------------------- experiment commands -- */
 
-/* The specification does not define what goes inside the 105-byte command
- * payload, so this is our structure and must be agreed with DICE:
+/* Command payload, version 3, matching the visual payload's encoder so one
+ * host can drive both:
  *
- *   byte 0      command id, from the list below
- *   byte 1      flags, currently zero
- *   bytes 2-3   16-bit parameter, meaning depends on the command
- *   bytes 4+    reserved, zero
+ *   byte 0      opcode
+ *   bytes 1-2   sequence, big endian, echoed in telemetry so a reply can be
+ *               matched to the command that caused it
+ *   byte 3      argument length, bytes
+ *   byte 4      force, non-zero to override an interlock
+ *   bytes 5-6   CRC-16/CCITT-FALSE, big endian, over bytes 0 to 4 followed by
+ *               the arguments. The padding is not covered.
+ *   bytes 7+    arguments, little endian, zero padded to 98 bytes
+ *
+ * The inner CRC is not redundant with the packet CRC: it covers the command
+ * alone, so a payload corrupted after the envelope was checked, or a host that
+ * disagrees about the layout, is rejected rather than half obeyed.
+ *
+ * Layout 1 put a 16-bit parameter at byte 2 and had no inner CRC. It is not
+ * accepted any more; the two cannot be told apart safely, because a layout 1
+ * command's parameter bytes land where v3 keeps its length and force fields.
  *
  * Commands are deliberately discrete rather than one general "capture", so a
  * ground operator can ask for exactly one image when the link is too slow to
@@ -119,7 +146,7 @@
  * carried inside this payload and invisible to DICE.
  *
  * The consequence is that every camera sees every packet, so exactly one may
- * transmit. SELECT_CAMERA chooses it; the rest fall silent. On the radcam
+ * transmit. BUS_SELECT_CAMERA chooses it; the rest fall silent. On the radcam
  * payload the same rule is enforced electrically, by powering one sensor at a
  * time; here it is enforced by each camera comparing the selected index with
  * its own. Two cameras driving the pair at once would corrupt both.
@@ -133,7 +160,38 @@
 
 #define STP_CMD_SELECT_CAMERA 0x6DU  /* index u8 */
 #define STP_CMD_CAMERA_LIST 0x6EU
-#define STP_CMD_CAMERA_INFO 0x6FU
+#define STP_CMD_CAMERA_INFO 0x61U
+#define STP_CMD_CAPTURE_IMAGE 0x30U /* ephemeral HRT frame on thermal */
+#define STP_CMD_COMMON_START_RECORD 0x31U /* slot recording unsupported here */
+#define STP_CMD_COMMON_STOP_RECORD 0x32U
+#define STP_CMD_SLOT_LIST 0x64U
+#define STP_CMD_SLOT_INFO 0x65U
+#define STP_CMD_SLOT_CAPTURE_IMAGE 0x66U
+#define STP_CMD_SLOT_RECORD_START 0x67U
+#define STP_CMD_SLOT_RECORD_STOP 0x68U
+#define STP_CMD_SLOT_DOWNLOAD 0x69U
+#define STP_CMD_SLOT_DELETE 0x6AU
+#define STP_CMD_SLOT_DELETE_ALL 0x6BU
+#define STP_CMD_SLOT_DOWNLOAD_ABORT 0x6CU
+#define STP_CMD_STREAM_START 0x78U /* live HRT stream */
+#define STP_CMD_STREAM_STOP 0x79U
+#define STP_CMD_REQUEST_MEDIA 0x40U
+#define STP_CMD_GET_MEDIA_LIST 0x21U
+
+/* Hand the bus to one camera. index u8; 0xFF gives it to nobody.
+ *
+ * This exists alongside SELECT_CAMERA because the two are not the same
+ * question. 0x6D is shared with the visual payload, which consumes it to
+ * switch the sensor behind its own CSI lanes; it says nothing about who may
+ * drive the pair. 0x6F is consumed only by cameras that are separate nodes on
+ * this bus, so the host can move the right to transmit without also
+ * reconfiguring another payload's internals.
+ *
+ * Every camera acts on it, whether or not it is the one named: the camera
+ * that matches takes the bus, and every other camera drops anything it still
+ * owed. Keeping them separate is what stops one host action meaning two
+ * different things to two different devices. */
+#define STP_CMD_BUS_SELECT_CAMERA 0x6FU
 
 /* Thermal commands. These act on the selected camera, so a camera that is not
  * selected ignores them, and one that is not thermal reports BAD_TYPE. */
@@ -144,8 +202,8 @@
 #define STP_CMD_THERMAL_SPOT 0x7DU           /* x u16, y u16, w u16, h u16 */
 #define STP_CMD_THERMAL_SET_PALETTE 0x7EU    /* palette u8 */
 
-/* Output modes. Radiometric is every pixel a temperature; palette is an 8-bit
- * mapping that is viewable but no longer a measurement. */
+/* Only radiometric mode is emitted by this firmware. Palette and BOTH are
+ * reserved values and return UNSUPPORTED until their HRT layout exists. */
 #define STP_THERMAL_OUTPUT_RADIOMETRIC 0U
 #define STP_THERMAL_OUTPUT_PALETTE 1U
 #define STP_THERMAL_OUTPUT_BOTH 2U
@@ -170,6 +228,8 @@
 #define STP_RESULT_CAMERA_FAULT 3U
 #define STP_RESULT_NOT_SELECTED 4U
 #define STP_RESULT_UNKNOWN_COMMAND 5U
+#define STP_RESULT_UNSUPPORTED 6U
+#define STP_RESULT_HRT_STOPPED 7U /* capture/stream refused until HRT GO */
 
 /* ------------------------------------------------------------ receiving -- */
 

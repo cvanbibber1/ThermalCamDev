@@ -1,0 +1,207 @@
+{
+  "crc_errors": 1,
+  "phases": [
+    {
+      "name": "select_thermal",
+      "ack": 1,
+      "thermal_lrt": [
+        {
+          "owner": 1,
+          "seq": 1,
+          "opcode": 111,
+          "result": "ok",
+          "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+          "build_source_sha256": "3d28930709b2d1d445771c3fe6d51606224fcd85109298722f54b59763c45019",
+          "cpu_health_valid": false,
+          "storage_health_valid": false,
+          "safe_mode_health_valid": false
+        }
+      ],
+      "other_lrt": 0,
+      "hrt": 0
+    },
+    {
+      "name": "common_record_start",
+      "ack": 1,
+      "thermal_lrt": [
+        {
+          "owner": 1,
+          "seq": 2,
+          "opcode": 49,
+          "result": "unsupported",
+          "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+          "build_source_sha256": "3d28930709b2d1d445771c3fe6d51606224fcd85109298722f54b59763c45019",
+          "cpu_health_valid": false,
+          "storage_health_valid": false,
+          "safe_mode_health_valid": false
+        }
+      ],
+      "other_lrt": 0,
+      "hrt": 0
+    },
+    {
+      "name": "common_record_stop",
+      "ack": 1,
+      "thermal_lrt": [
+        {
+          "owner": 1,
+          "seq": 3,
+          "opcode": 50,
+          "result": "unsupported",
+          "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+          "build_source_sha256": "3d28930709b2d1d445771c3fe6d51606224fcd85109298722f54b59763c45019",
+          "cpu_health_valid": false,
+          "storage_health_valid": false,
+          "safe_mode_health_valid": false
+        }
+      ],
+      "other_lrt": 0,
+      "hrt": 0
+    },
+    {
+      "name": "slot_list",
+      "ack": 1,
+      "thermal_lrt": [
+        {
+          "owner": 1,
+          "seq": 4,
+          "opcode": 100,
+          "result": "unsupported",
+          "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+          "build_source_sha256": "3d28930709b2d1d445771c3fe6d51606224fcd85109298722f54b59763c45019",
+          "cpu_health_valid": false,
+          "storage_health_valid": false,
+          "safe_mode_health_valid": false
+        }
+      ],
+      "other_lrt": 0,
+      "hrt": 0
+    },
+    {
+      "name": "slot_record_start",
+      "ack": 1,
+      "thermal_lrt": [
+        {
+          "owner": 1,
+          "seq": 5,
+          "opcode": 103,
+          "result": "unsupported",
+          "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+          "build_source_sha256": "3d28930709b2d1d445771c3fe6d51606224fcd85109298722f54b59763c45019",
+          "cpu_health_valid": false,
+          "storage_health_valid": false,
+          "safe_mode_health_valid": false
+        }
+      ],
+      "other_lrt": 0,
+      "hrt": 0
+    },
+    {
+      "name": "capture_start",
+      "ack": 1,
+      "thermal_lrt": [
+        {
+          "owner": 1,
+          "seq": 6,
+          "opcode": 48,
+          "result": "ok",
+          "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+          "build_source_sha256": "3d28930709b2d1d445771c3fe6d51606224fcd85109298722f54b59763c45019",
+          "cpu_health_valid": false,
+          "storage_health_valid": false,
+          "safe_mode_health_valid": false
+        }
+      ],
+      "other_lrt": 0,
+      "hrt": 0
+    },
+    {
+      "name": "capture_image",
+      "ack": 0,
+      "thermal_lrt": [],
+      "other_lrt": 0,
+      "hrt": 14,
+      "complete_frames": 1,
+      "frame_lengths": [
+        38400
+      ]
+    },
+    {
+      "name": "stream_start",
+      "ack": 1,
+      "thermal_lrt": [
+        {
+          "owner": 1,
+          "seq": 7,
+          "opcode": 120,
+          "result": "ok",
+          "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+          "build_source_sha256": "3d28930709b2d1d445771c3fe6d51606224fcd85109298722f54b59763c45019",
+          "cpu_health_valid": false,
+          "storage_health_valid": false,
+          "safe_mode_health_valid": false
+        }
+      ],
+      "other_lrt": 0,
+      "hrt": 0
+    },
+    {
+      "name": "active_hrt_handoff",
+      "ack": 0,
+      "thermal_lrt": [],
+      "other_lrt": 0,
+      "hrt": 3
+    },
+    {
+      "name": "visual_owns_bus",
+      "ack": 0,
+      "thermal_lrt": [],
+      "other_lrt": 0,
+      "hrt": 0
+    },
+    {
+      "name": "visual_local_sensor_select",
+      "ack": 1,
+      "thermal_lrt": [],
+      "other_lrt": 1,
+      "hrt": 0
+    },
+    {
+      "name": "owner_none",
+      "ack": 0,
+      "thermal_lrt": [],
+      "other_lrt": 0,
+      "hrt": 0
+    },
+    {
+      "name": "reselect_thermal",
+      "ack": 1,
+      "thermal_lrt": [
+        {
+          "owner": 1,
+          "seq": 12,
+          "opcode": 111,
+          "result": "ok",
+          "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+          "build_source_sha256": "3d28930709b2d1d445771c3fe6d51606224fcd85109298722f54b59763c45019",
+          "cpu_health_valid": false,
+          "storage_health_valid": false,
+          "safe_mode_health_valid": false
+        }
+      ],
+      "other_lrt": 0,
+      "hrt": 0
+    }
+  ],
+  "active_hrt_start_seen": true,
+  "checks": {
+    "packet_crc": false,
+    "thermal_identity": true,
+    "unsupported_storage": true,
+    "one_radiometric_frame": true,
+    "active_hrt_handoff": true,
+    "visual_ownership_silences_thermal": true,
+    "owner_none_silent": true,
+    "thermal_reselected": true
+  }
+}

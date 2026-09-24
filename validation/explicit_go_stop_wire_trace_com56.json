@@ -1,0 +1,285 @@
+{
+  "port": "COM56",
+  "checks": {
+    "layout3_thermal_selected": true,
+    "gate_closed_from_boot": true,
+    "capture_refused_while_stopped": true,
+    "no_hrt_while_stopped": true,
+    "go_one_complete_still": true,
+    "capture_refused_after_stop": true,
+    "stream_refused_after_stop": true,
+    "stop_latches_closed": true,
+    "go_multiple_complete_frames": true,
+    "no_hrt_reassertion_after_stop": true,
+    "stop_result_ok": true,
+    "gate_closed_after_stop": true,
+    "capture_recovers_after_go": true,
+    "exactly_three_go_requests": true,
+    "zero_outer_crc": true
+  },
+  "stats": {
+    "bad_outer_crc": 0,
+    "bad_packets": [],
+    "go_requests": 3,
+    "hrt_packets": 384,
+    "lrt_packets": 9
+  },
+  "wire_steps": [
+    {
+      "phase": "select",
+      "tx": "command",
+      "opcode": "0x6F",
+      "seq": 22001,
+      "args_hex": "01"
+    },
+    {
+      "phase": "select",
+      "tx": "request",
+      "type": "0x81",
+      "wire_hex": "1acffc1d6ab563d5000081c7a266"
+    },
+    {
+      "phase": "select",
+      "rx": "matching_lrt",
+      "opcode": "0x6F",
+      "seq": 22001,
+      "result": "ok",
+      "gate_open": false
+    },
+    {
+      "phase": "closed_capture",
+      "tx": "command",
+      "opcode": "0x30",
+      "seq": 22002,
+      "args_hex": ""
+    },
+    {
+      "phase": "closed_capture",
+      "tx": "request",
+      "type": "0x81",
+      "wire_hex": "1acffc1d6ab563d6000081c74cb4"
+    },
+    {
+      "phase": "closed_capture",
+      "rx": "matching_lrt",
+      "opcode": "0x30",
+      "seq": 22002,
+      "result": "hrt stopped",
+      "gate_open": false
+    },
+    {
+      "phase": "still",
+      "tx": "request",
+      "type": "0x87",
+      "wire_hex": "1acffc1d6ab563d7000087c74c43"
+    },
+    {
+      "phase": "still",
+      "tx": "command",
+      "opcode": "0x30",
+      "seq": 22003,
+      "args_hex": ""
+    },
+    {
+      "phase": "still",
+      "tx": "request",
+      "type": "0x81",
+      "wire_hex": "1acffc1d6ab563d7000081c7e6e5"
+    },
+    {
+      "phase": "still",
+      "rx": "matching_lrt",
+      "opcode": "0x30",
+      "seq": 22003,
+      "result": "ok",
+      "gate_open": true
+    },
+    {
+      "phase": "still",
+      "tx": "request",
+      "type": "0x85",
+      "wire_hex": "1acffc1d6ab563db000085c7a10a"
+    },
+    {
+      "phase": "stopped_commands",
+      "tx": "command",
+      "opcode": "0x30",
+      "seq": 22004,
+      "args_hex": ""
+    },
+    {
+      "phase": "stopped_commands",
+      "tx": "request",
+      "type": "0x81",
+      "wire_hex": "1acffc1d6ab563dc000081c70a1a"
+    },
+    {
+      "phase": "stopped_commands",
+      "rx": "matching_lrt",
+      "opcode": "0x30",
+      "seq": 22004,
+      "result": "hrt stopped",
+      "gate_open": false
+    },
+    {
+      "phase": "stopped_commands",
+      "tx": "command",
+      "opcode": "0x78",
+      "seq": 22005,
+      "args_hex": ""
+    },
+    {
+      "phase": "stopped_commands",
+      "tx": "request",
+      "type": "0x81",
+      "wire_hex": "1acffc1d6ab563dc000081c70a1a"
+    },
+    {
+      "phase": "stopped_commands",
+      "rx": "matching_lrt",
+      "opcode": "0x78",
+      "seq": 22005,
+      "result": "hrt stopped",
+      "gate_open": false
+    },
+    {
+      "phase": "stream",
+      "tx": "request",
+      "type": "0x87",
+      "wire_hex": "1acffc1d6ab563de000087c7e43f"
+    },
+    {
+      "phase": "stream",
+      "tx": "command",
+      "opcode": "0x78",
+      "seq": 22006,
+      "args_hex": ""
+    },
+    {
+      "phase": "stream",
+      "tx": "request",
+      "type": "0x81",
+      "wire_hex": "1acffc1d6ab563de000081c74e99"
+    },
+    {
+      "phase": "stream",
+      "rx": "matching_lrt",
+      "opcode": "0x78",
+      "seq": 22006,
+      "result": "ok",
+      "gate_open": true
+    },
+    {
+      "phase": "stop",
+      "tx": "request",
+      "type": "0x85",
+      "wire_hex": "1acffc1d6ab563e4000085c7c81d"
+    },
+    {
+      "phase": "stop",
+      "tx": "command",
+      "opcode": "0x79",
+      "seq": 22007,
+      "args_hex": ""
+    },
+    {
+      "phase": "stop",
+      "tx": "request",
+      "type": "0x81",
+      "wire_hex": "1acffc1d6ab563e5000081c7ae88"
+    },
+    {
+      "phase": "stop",
+      "rx": "matching_lrt",
+      "opcode": "0x79",
+      "seq": 22007,
+      "result": "ok",
+      "gate_open": false
+    },
+    {
+      "phase": "stop",
+      "tx": "request",
+      "type": "0x81",
+      "wire_hex": "1acffc1d6ab563e5000081c7ae88"
+    },
+    {
+      "phase": "recovered_still",
+      "tx": "request",
+      "type": "0x87",
+      "wire_hex": "1acffc1d6ab563e6000087c7eafc"
+    },
+    {
+      "phase": "recovered_still",
+      "tx": "command",
+      "opcode": "0x30",
+      "seq": 22008,
+      "args_hex": ""
+    },
+    {
+      "phase": "recovered_still",
+      "tx": "request",
+      "type": "0x81",
+      "wire_hex": "1acffc1d6ab563e6000081c7405a"
+    },
+    {
+      "phase": "recovered_still",
+      "rx": "matching_lrt",
+      "opcode": "0x30",
+      "seq": 22008,
+      "result": "ok",
+      "gate_open": true
+    },
+    {
+      "phase": "recovered_still",
+      "tx": "request",
+      "type": "0x85",
+      "wire_hex": "1acffc1d6ab563ea000085c707b5"
+    },
+    {
+      "phase": "recovered_still",
+      "tx": "command",
+      "opcode": "0x6F",
+      "seq": 22009,
+      "args_hex": "00"
+    }
+  ],
+  "identity": {
+    "layout": 3,
+    "node_index": 1,
+    "bus_owner": 1,
+    "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+    "build_source_sha256": "b60039916bcb89858f4f99c30bc0dfc0454037342c90dd3a7e08df70454d6b96"
+  },
+  "still": {
+    "command_result": "ok",
+    "hrt_packets": 13,
+    "frame_lengths": [
+      38400
+    ]
+  },
+  "stream": {
+    "command_result": "ok",
+    "hrt_packets": 293,
+    "frame_lengths": [
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400
+    ]
+  }
+}

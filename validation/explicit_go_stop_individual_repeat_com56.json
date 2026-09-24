@@ -1,0 +1,69 @@
+{
+  "port": "COM56",
+  "checks": {
+    "layout3_thermal_selected": true,
+    "gate_closed_from_boot": true,
+    "capture_refused_while_stopped": true,
+    "no_hrt_while_stopped": true,
+    "go_one_complete_still": true,
+    "capture_refused_after_stop": true,
+    "stream_refused_after_stop": true,
+    "stop_latches_closed": true,
+    "go_multiple_complete_frames": true,
+    "no_hrt_reassertion_after_stop": true,
+    "stop_result_ok": true,
+    "gate_closed_after_stop": true,
+    "capture_recovers_after_go": true,
+    "exactly_three_go_requests": true,
+    "zero_outer_crc": true
+  },
+  "stats": {
+    "bad_outer_crc": 0,
+    "bad_packets": [],
+    "go_requests": 3,
+    "hrt_packets": 389,
+    "lrt_packets": 9
+  },
+  "identity": {
+    "layout": 3,
+    "node_index": 1,
+    "bus_owner": 1,
+    "build_commit": "3795985ab06485dfd9b4a395efb054e06647cb84",
+    "build_source_sha256": "b60039916bcb89858f4f99c30bc0dfc0454037342c90dd3a7e08df70454d6b96"
+  },
+  "still": {
+    "command_result": "ok",
+    "hrt_packets": 13,
+    "frame_lengths": [
+      38400
+    ]
+  },
+  "stream": {
+    "command_result": "ok",
+    "hrt_packets": 293,
+    "frame_lengths": [
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400,
+      38400
+    ]
+  }
+}

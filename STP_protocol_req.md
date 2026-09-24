@@ -10,6 +10,17 @@ Then Coarse Time (timestamp with 1 second resolution as 4 bytes)
 Then Fine time (2 bytes, resolution of 15.3 micro seconds) # How to reconstruct?
 Then packet type (1 byte, packet of 0x10 is command,) # List of other packet types?
 
+Implementation note (V3 thermal firmware): all cameras share Target ID 0xC7.
+The host selects exactly one transmitting node with BUS_SELECT_CAMERA 0x6F;
+SELECT_CAMERA 0x6D only routes a local sensor. Command payloads carry opcode,
+big-endian sequence, argument length, force byte, inner CRC, then little-endian
+arguments. Transport ACK does not prove command success; poll LRT layout 3 for
+the matching sequence/result and verify the command block CRC. The thermal
+HRT tap starts closed at boot. One HRT GO opens it; thermal-owner STOP closes
+it. GO does not start capture. Capture/stream start while closed returns
+HRT_STOPPED. See README.md for
+the full map.
+
 
 Optional but may be helpful: Consider radiation and bit flips and possibility of triple modular redundancy in several areas (full triple modular redundancy or only for critical / vulnerable parts) otherwise implement radiation protections when feasible.
 

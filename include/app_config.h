@@ -67,6 +67,11 @@
  */
 #define APP_RS485_BAUD 921600U
 /* Doubles as the STP Target ID on this branch; see STP_DEFAULT_TARGET_ID. */
+/* Target ID a blank unit starts with. Must match STP_DEFAULT_TARGET_ID: the
+ * link prefers the stored value and only falls back to the protocol default
+ * when flash holds zero, so leaving these two disagreeing means a blank board
+ * silently answers on the wrong address, which is invisible until nothing
+ * replies. */
 #define APP_NODE_ADDRESS_DEFAULT 0xC7U
 
 /* This camera's index within the experiment.

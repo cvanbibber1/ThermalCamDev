@@ -56,11 +56,17 @@ COMMANDS = {
     "stream-off": 0x06,
     "dosimeter-zero": 0x07,
     "request-keyframe": 0x08,
+    "capture-image": 0x30,
+    "stream-start": 0x78,
+    "stream-stop": 0x79,
     # Camera chain, protocol v1.1. Every camera on the bus shares the Target
     # ID, so these are how one is singled out and driven.
     "select-camera": 0x6D,
     "camera-list": 0x6E,
-    "camera-info": 0x6F,
+    "camera-info": 0x61,
+    # Hands the bus to one camera. Separate from select-camera, which the
+    # visual payload also consumes to switch its own sensor.
+    "bus-select-camera": 0x6F,
     "thermal-set-output": 0x74,
     "thermal-set-range": 0x75,
     "thermal-set-emissivity": 0x76,
@@ -75,7 +81,8 @@ PALETTES = {"white-hot": 0, "black-hot": 1, "ironbow": 2, "rainbow": 3,
             "arctic": 4}
 OUTPUT_MODES = {"radiometric": 0, "palette": 1, "both": 2}
 RESULTS = {0: "ok", 1: "bad parameter", 2: "wrong camera type",
-           3: "camera fault", 4: "not selected", 5: "unknown command"}
+           3: "camera fault", 4: "not selected", 5: "unknown command",
+           6: "unsupported", 7: "hrt stopped"}
 CAMERA_NONE = 0xFF
 
 CAPTURE_STATES = {0: "idle", 1: "correcting", 2: "single image", 3: "recording"}
@@ -159,10 +166,12 @@ def command_arguments(args) -> bytes:
     resolution without floating point on the camera.
     """
     name = args.command
-    if name == "select-camera":
+    if name in ("select-camera", "bus-select-camera"):
         if args.camera is None:
-            raise SystemExit("select-camera needs --camera")
+            raise SystemExit(f"{name} needs --camera")
         return struct.pack("<B", args.camera)
+    if name == "camera-list":
+        return b"\x00\x01"
     if name == "thermal-set-palette":
         if args.palette is None:
             raise SystemExit("thermal-set-palette needs --palette")
@@ -200,27 +209,44 @@ def build_request(codec: Codec, packet_type: int, target_id: int) -> bytes:
     return bytes(packet)
 
 
+_command_sequence = 0
+
+
 def build_command(codec: Codec, command_id: int, target_id: int,
-                  parameter: int = 0, args: bytes = b"") -> bytes:
+                  parameter: int = 0, args: bytes = b"",
+                  force: bool = False, sequence: int | None = None,
+                  coarse_time: int | None = None) -> bytes:
     """A 120-byte command packet carrying one experiment command.
 
-    `args` is the camera-chain argument block, which starts after the command
-    and flags bytes and is little endian -- unlike the packet envelope around
-    it, which is big endian. `parameter` is the older 16-bit form and is
-    ignored when `args` is given.
+    `args` follows the seven-byte V3 command header and is little endian.
     """
     packet = bytearray(COMMAND_SIZE)
     packet[0:4] = codec.sync_bytes()
-    struct.pack_into(codec.order + "I", packet, 4, int(time.time()))
+    struct.pack_into(codec.order + "I", packet, 4,
+                     int(time.time()) if coarse_time is None else coarse_time)
     struct.pack_into(codec.order + "H", packet, 8, 0)
     packet[10] = TYPE_COMMAND
     packet[11] = target_id
-    packet[COMMAND_PAYLOAD_OFFSET] = command_id
-    packet[COMMAND_PAYLOAD_OFFSET + 1] = 0
-    if args:
-        packet[COMMAND_PAYLOAD_OFFSET + 2:COMMAND_PAYLOAD_OFFSET + 2 + len(args)] = args
-    else:
-        struct.pack_into(codec.order + "H", packet, COMMAND_PAYLOAD_OFFSET + 2, parameter)
+    # Command payload v3, matching the visual payload's encoder so one host
+    # drives both. The header is big endian; the arguments are little endian
+    # by ICD convention, and the inner CRC covers the header and arguments
+    # but not the padding.
+    global _command_sequence
+    if sequence is None:
+        # A fresh sequence per command, so a reply can be matched to the one
+        # that caused it. Callers that need reproducible bytes, such as the
+        # published command list, pass an explicit value.
+        _command_sequence = (_command_sequence + 1) & 0xFFFF
+        sequence = _command_sequence
+    if not args and parameter:
+        args = struct.pack("<H", parameter)
+    if len(args) > 98:
+        raise ValueError("command arguments exceed 98 bytes")
+    head = bytes([command_id]) + struct.pack(">HBB", sequence & 0xFFFF,
+                                             len(args), int(force))
+    inner = crc16_ccitt(head + args, 0xFFFF)
+    body = head + struct.pack(">H", inner) + args
+    packet[COMMAND_PAYLOAD_OFFSET:COMMAND_PAYLOAD_OFFSET + len(body)] = body
     struct.pack_into(codec.order + "H", packet, COMMAND_SIZE - 2,
                      codec.crc(bytes(packet[4:COMMAND_SIZE - 2])))
     return bytes(packet)
@@ -268,11 +294,48 @@ def decode_lrt(codec: Codec, payload: bytes) -> dict:
             "thermal_auto_range": bool(flags & 2),
             "thermal_range_valid": bool(flags & 4),
             "thermal_over_range": bool(flags & 8),
+            "thermal_spot_valid": bool(flags & 16),
             "thermal_nuc_count": payload[223],
             "thermal_reflected_c": cc(224),
             "thermal_range_low_c": cc(226),
             "thermal_range_high_c": cc(228),
         }
+    extension = {}
+    layout = codec.u32(payload, 0)
+    if layout in (2, 3) and payload[232] == layout:
+        stored = codec.u16(payload, 254)
+        computed = crc16_ccitt(payload[232:254], 0xFFFF)
+        extension = {
+            "command_block_valid": stored == computed,
+            "node_index": payload[233],
+            "node_kind": payload[234],
+            "bus_owner": payload[235],
+            "sensor_selected": payload[236],
+            "hrt_enabled": bool(payload[238]),
+            "hrt_credits": codec.u16(payload, 244) if layout == 2 else 0,
+            "hrt_go_active": bool(codec.u16(payload, 244)) if layout == 3 else False,
+            "command_seq": codec.u16(payload, 246) if payload[239] else None,
+            "command_response_length": codec.u16(payload, 252),
+            "command_crc_errors": codec.u32(payload, 256),
+            "thermal_spot_effective": tuple(codec.u16(payload, offset)
+                                             for offset in (260, 262, 264, 266)),
+        }
+        if stored == computed and payload[239]:
+            extension["last_command"] = payload[248]
+            extension["last_result"] = RESULTS.get(payload[249], payload[249])
+        if payload[268] == 1:
+            identity_valid = crc16_ccitt(payload[268:324], 0xFFFF) == codec.u16(payload, 324)
+            extension.update({
+                "identity_block_valid": identity_valid,
+                "build_commit": payload[272:292].hex() if identity_valid and payload[269] & 1 else None,
+                "build_source_sha256": payload[292:324].hex() if identity_valid and payload[269] & 1 else None,
+                "thermal_health_valid": bool(identity_valid and payload[269] & 2),
+                "reset_health_valid": bool(identity_valid and payload[269] & 4),
+                "fault_health_valid": bool(identity_valid and payload[269] & 8),
+                "cpu_health_valid": bool(identity_valid and payload[270] & 1),
+                "storage_health_valid": bool(identity_valid and payload[270] & 2),
+                "safe_mode_health_valid": bool(identity_valid and payload[270] & 4),
+            })
     return {
         **camera,
         **thermal,
@@ -292,6 +355,7 @@ def decode_lrt(codec: Codec, payload: bytes) -> dict:
         "capture_state": CAPTURE_STATES.get(payload[61], payload[61]),
         "images_sent": codec.u16(payload, 62),
         **scene,
+        **extension,
     }
 
 
@@ -373,7 +437,7 @@ class FrameAssembler:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", required=True, help="RS-422 converter serial port")
-    # Test branch: the firmware here runs at 2 Mbaud, not the 921600 of flight.
+    # This checkout's flight build uses 921600 8N1.
     parser.add_argument("--baud", type=int, default=921600)
     parser.add_argument("--target", type=lambda v: int(v, 0), default=0xC7,
                         help="Target ID of the camera. Default 0xC7")
@@ -396,9 +460,9 @@ def main() -> int:
     parser.add_argument("--repeat-request", type=int, default=1,
                         help="send the request this many times, to prove it is honoured")
     parser.add_argument("--command", choices=sorted(COMMANDS),
-                        help="send an experiment command before listening")
+                        help="send an experiment command; run bus-select-camera first in a separate invocation")
     parser.add_argument("--camera", type=lambda v: int(v, 0),
-                        help="camera index for select-camera, or 255 for none")
+                        help="index for bus-select-camera; select-camera uses local sensor 0 or 255")
     parser.add_argument("--palette", choices=sorted(PALETTES),
                         help="palette for thermal-set-palette / thermal-set-output")
     parser.add_argument("--output-mode", choices=sorted(OUTPUT_MODES),
@@ -458,6 +522,7 @@ def main() -> int:
     counts = {"ack": 0, "lrt": 0, "hrt": 0, "crc_error": 0, "other_target": 0}
     started = time.time()
     last_report = started
+    last_build = None
 
     print(f"listening on {args.port} at {args.baud} baud, sync {sync.hex(' ')}")
     # The experiment is a slave: in flight it transmits only in reply to a
@@ -513,6 +578,12 @@ def main() -> int:
                 elif size == LRT_DATA_SIZE:
                     counts["lrt"] += 1
                     fields = decode_lrt(codec, packet[6:6 + 1248])
+                    if fields.get("identity_block_valid") and fields.get("build_source_sha256") != last_build:
+                        last_build = fields["build_source_sha256"]
+                        print(f"BUILD commit={fields['build_commit']} source_sha256={last_build} "
+                              f"CPU={'valid' if fields['cpu_health_valid'] else 'unavailable'} "
+                              f"storage={'valid' if fields['storage_health_valid'] else 'unavailable'} "
+                              f"safe_mode={'valid' if fields['safe_mode_health_valid'] else 'unavailable'}")
                     print(
                         f"LRT  up={fields['uptime_ms'] / 1000:8.1f}s  "
                         f"{fields['lepton_state']:<10} gen={fields['frame_generation']:<7} "
@@ -521,6 +592,13 @@ def main() -> int:
                         f"{fields['capture_state']:<12} "
                         + (f"scene {fields['scene_min_c']:.1f}..{fields['scene_max_c']:.1f} C"
                            if "scene_min_c" in fields else "no frame")
+                        + (f"  seq={fields['command_seq']} "
+                           f"cmd=0x{fields['last_command']:02X} "
+                           f"result={fields['last_result']}"
+                           if fields.get("command_block_valid") and
+                              fields.get("command_seq") is not None else "")
+                        + ("  INVALID command block CRC"
+                           if fields.get("command_block_valid") is False else "")
                     )
                 elif size == HRT_DATA_SIZE:
                     counts["hrt"] += 1

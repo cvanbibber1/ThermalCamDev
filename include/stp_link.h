@@ -14,7 +14,10 @@
 /* Our own LRT and HRT payload layouts. The specification fixes the packet
  * envelope but says nothing about payload contents, so these must be agreed
  * with DICE before flight. Bumped whenever a field moves. */
-#define STP_LRT_LAYOUT_VERSION 1U
+/* Version 3 retains version 2 offsets and CRCs. The u16 at 244..245 is now
+ * an HRT GO gate flag (0 closed, 1 open), replacing packet credits. The
+ * extension version at 232 is also 3. All multibyte values are big endian. */
+#define STP_LRT_LAYOUT_VERSION 3U
 /* Version 2 replaced the 16-bit version field with an 8-bit version and an
  * 8-bit codec mode, so an image is no longer assumed to be raw pixels. A
  * decoder tells them apart by the byte at offset 14: version 1 left it zero. */
